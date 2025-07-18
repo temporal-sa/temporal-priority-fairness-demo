@@ -1,3 +1,40 @@
-spring: 
+server:
+  address: 0.0.0.0
+  port: 7080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: prometheus,temporalworkerinfo
+spring:
   application:
     name: priority-service
+
+  temporal:
+    namespace: donald-demo.sdvdw
+    workersAutoDiscovery:
+      packages:
+        - com.demo.priority
+    connection:
+      target: donald-demo.sdvdw.tmprl.cloud:7233
+      mtls:
+        key-file: /Users/donald/stuff/source/certificates/temporal-client.key
+        cert-chain-file: /Users/donald/stuff/source/certificates/temporal-client-leaf.pem
+
+    workers:
+      - name: PriorityWorkflow
+        task-queue: PriorityWorkflowTQ
+        workflow-classes:
+          - com.demo.priority.service.workflows.PriorityWorkflowImpl
+        capacity:
+          max-concurrent-workflow-task-pollers: 10
+      - name: PriorityActivity
+        task-queue: PriorityActivityTQ
+        activity-beans:
+          - priorityActivityImpl
+        capacity:
+          # Limiting activity progression to max of 5 so we have queues.
+          max-concurrent-activity-executors: 5
+
+
