@@ -10,6 +10,15 @@ management:
 spring:
   application:
     name: priority-service
+  web:
+    cors:
+      allowed-origins:
+        - https://localhost:4000
+      allowed-methods:
+        - GET
+        - POST
+      allowed-headers: "*"
+      allowed-credentials: true
 
   temporal:
     namespace: donald-demo.sdvdw

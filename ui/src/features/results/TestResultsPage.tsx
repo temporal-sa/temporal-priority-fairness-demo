@@ -1,0 +1,216 @@
+import React, { useState, useEffect } from 'react';
+import {
+    Container,
+    Typography,
+    Card,
+    CardContent,
+    LinearProgress,
+    Box,
+    Chip,
+    Grid,
+    Alert,
+    CircularProgress,
+    IconButton,
+    Tooltip
+} from '@mui/material';
+import { Refresh } from '@mui/icons-material';
+import axios from 'axios';
+import type { TestResults, WorkflowByPriority, Activity } from '../../lib/types/test-config';
+
+interface TestResultsPageProps {
+    runPrefix: string;
+}
+
+export default function TestResultsPage({ runPrefix }: TestResultsPageProps) {
+    const [testResults, setTestResults] = useState<TestResults | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [autoRefresh, setAutoRefresh] = useState(true);
+
+    const fetchResults = async () => {
+        if (!runPrefix) return;
+        
+        setLoading(true);
+        setError(null);
+        
+        try {
+            const response = await axios.get(`/api/run-status?runPrefix=${encodeURIComponent(runPrefix)}`);
+            setTestResults(response.data);
+        } catch (err: any) {
+            setError(err.response?.data?.message || err.message || 'Failed to fetch results');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchResults();
+    }, [runPrefix]);
+
+    useEffect(() => {
+        if (!autoRefresh) return;
+        
+        const interval = setInterval(fetchResults, 3000); // Refresh every 3 seconds
+        return () => clearInterval(interval);
+    }, [autoRefresh, runPrefix]);
+
+    const calculateActivityProgress = (activity: Activity, totalWorkflows: number) => {
+        return (activity.numberCompleted / totalWorkflows) * 100;
+    };
+
+    const calculateOverallProgress = (workflow: WorkflowByPriority) => {
+        if (workflow.activities.length === 0) return 0;
+        const totalActivities = workflow.activities.length;
+        const completedActivities = workflow.activities.filter(
+            activity => activity.numberCompleted === workflow.numberOfWorkflows
+        ).length;
+        return (completedActivities / totalActivities) * 100;
+    };
+
+    const getPriorityColor = (priority: number) => {
+        const colors = ['#f44336', '#ff9800', '#ffc107', '#4caf50', '#2196f3'];
+        return colors[priority - 1] || '#9e9e9e';
+    };
+
+    const getProgressColor = (progress: number) => {
+        if (progress === 100) return 'success';
+        if (progress >= 50) return 'primary';
+        if (progress >= 25) return 'warning';
+        return 'error';
+    };
+
+    if (!runPrefix) {
+        return (
+            <Container sx={{ mt: 3 }}>
+                <Alert severity="info">Please provide a run prefix to view results.</Alert>
+            </Container>
+        );
+    }
+
+    return (
+        <Container sx={{ mt: 3 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                <Typography variant="h4" component="h1">
+                    Test Results: {runPrefix}
+                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Tooltip title="Refresh Results">
+                        <IconButton onClick={fetchResults} disabled={loading}>
+                            <Refresh />
+                        </IconButton>
+                    </Tooltip>
+                    <Chip 
+                        label={autoRefresh ? "Auto-refreshing" : "Manual refresh"} 
+                        color={autoRefresh ? "success" : "default"}
+                        onClick={() => setAutoRefresh(!autoRefresh)}
+                        clickable
+                    />
+                </Box>
+            </Box>
+
+            {loading && !testResults && (
+                <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+                    <CircularProgress />
+                </Box>
+            )}
+
+            {error && (
+                <Alert severity="error" sx={{ mb: 3 }}>
+                    {error}
+                </Alert>
+            )}
+
+            {testResults && (
+                <>
+                    <Card sx={{ mb: 3 }}>
+                        <CardContent>
+                            <Typography variant="h6" gutterBottom>
+                                Test Overview
+                            </Typography>
+                            <Box sx={{ display: 'flex', gap: 3 }}>
+                                <Typography variant="body1">
+                                    <strong>Total Workflows:</strong> {testResults.totalWorkflowsInTest}
+                                </Typography>
+                                <Typography variant="body1">
+                                    <strong>Priority Levels:</strong> {testResults.workflowsByPriority.length}
+                                </Typography>
+                            </Box>
+                        </CardContent>
+                    </Card>
+
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                        {testResults.workflowsByPriority.map((workflow: WorkflowByPriority) => (
+                            <Box key={workflow.workflowPriority}>
+                                <Card>
+                                    <CardContent>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                                            <Chip
+                                                label={`Priority ${workflow.workflowPriority}`}
+                                                sx={{
+                                                    backgroundColor: getPriorityColor(workflow.workflowPriority),
+                                                    color: 'white',
+                                                    fontWeight: 'bold'
+                                                }}
+                                            />
+                                            <Typography variant="body2" color="text.secondary">
+                                                {workflow.numberOfWorkflows} workflows
+                                            </Typography>
+                                            <Typography variant="body2" color="text.secondary">
+                                                {calculateOverallProgress(workflow).toFixed(1)}% complete
+                                            </Typography>
+                                        </Box>
+
+                                        <Box sx={{ mb: 2 }}>
+                                            <Typography variant="body2" gutterBottom>
+                                                Overall Progress
+                                            </Typography>
+                                            <LinearProgress
+                                                variant="determinate"
+                                                value={calculateOverallProgress(workflow)}
+                                                color={getProgressColor(calculateOverallProgress(workflow))}
+                                                sx={{ height: 8, borderRadius: 4 }}
+                                            />
+                                        </Box>
+
+                                        <Typography variant="subtitle2" gutterBottom sx={{ mt: 3 }}>
+                                            Activity Progress
+                                        </Typography>
+                                        
+                                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+                                            {workflow.activities.map((activity: Activity) => {
+                                                const progress = calculateActivityProgress(activity, workflow.numberOfWorkflows);
+                                                return (
+                                                    <Box key={activity.activityNumber} sx={{ minWidth: 250, flex: '1 1 auto' }}>
+                                                        <Box sx={{ p: 2, border: '1px solid #e0e0e0', borderRadius: 1 }}>
+                                                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                                                                <Typography variant="body2" fontWeight="medium">
+                                                                    Activity {activity.activityNumber}
+                                                                </Typography>
+                                                                <Typography variant="body2" color="text.secondary">
+                                                                    {activity.numberCompleted}/{workflow.numberOfWorkflows}
+                                                                </Typography>
+                                                            </Box>
+                                                            <LinearProgress
+                                                                variant="determinate"
+                                                                value={progress}
+                                                                color={getProgressColor(progress)}
+                                                                sx={{ height: 6, borderRadius: 3 }}
+                                                            />
+                                                            <Typography variant="caption" color="text.secondary">
+                                                                {progress.toFixed(1)}%
+                                                            </Typography>
+                                                        </Box>
+                                                    </Box>
+                                                );
+                                            })}
+                                        </Box>
+                                    </CardContent>
+                                </Card>
+                            </Box>
+                        ))}
+                    </Box>
+                </>
+            )}
+        </Container>
+    );
+} 
