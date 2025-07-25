@@ -90,9 +90,16 @@ export default function TestResultsPage({ runPrefix }: TestResultsPageProps) {
     return (
         <Container sx={{ mt: 3 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                <Typography variant="h4" component="h1">
-                    Test Results: {runPrefix}
-                </Typography>
+                <Box>
+                    <Typography variant="h4" component="h1">
+                        Test Results: {runPrefix}
+                    </Typography>
+                    {testResults && (
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                            {testResults.totalWorkflowsInTest} workflows in test
+                        </Typography>
+                    )}
+                </Box>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                     <Tooltip title="Refresh Results">
                         <IconButton onClick={fetchResults} disabled={loading}>
@@ -121,24 +128,7 @@ export default function TestResultsPage({ runPrefix }: TestResultsPageProps) {
             )}
 
             {testResults && (
-                <>
-                    <Card sx={{ mb: 3 }}>
-                        <CardContent>
-                            <Typography variant="h6" gutterBottom>
-                                Test Overview
-                            </Typography>
-                            <Box sx={{ display: 'flex', gap: 3 }}>
-                                <Typography variant="body1">
-                                    <strong>Total Workflows:</strong> {testResults.totalWorkflowsInTest}
-                                </Typography>
-                                <Typography variant="body1">
-                                    <strong>Priority Levels:</strong> {testResults.workflowsByPriority.length}
-                                </Typography>
-                            </Box>
-                        </CardContent>
-                    </Card>
-
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
                         {testResults.workflowsByPriority.map((workflow: WorkflowByPriority) => (
                             <Box key={workflow.workflowPriority}>
                                 <Card>
@@ -158,47 +148,36 @@ export default function TestResultsPage({ runPrefix }: TestResultsPageProps) {
                                             <Typography variant="body2" color="text.secondary">
                                                 {calculateOverallProgress(workflow).toFixed(1)}% complete
                                             </Typography>
-                                        </Box>
-
-                                        <Box sx={{ mb: 2 }}>
-                                            <Typography variant="body2" gutterBottom>
-                                                Overall Progress
-                                            </Typography>
                                             <LinearProgress
                                                 variant="determinate"
                                                 value={calculateOverallProgress(workflow)}
                                                 color={getProgressColor(calculateOverallProgress(workflow))}
-                                                sx={{ height: 8, borderRadius: 4 }}
+                                                sx={{ height: 8, borderRadius: 4, flex: 1, ml: 2 }}
                                             />
                                         </Box>
 
-                                        <Typography variant="subtitle2" gutterBottom sx={{ mt: 3 }}>
-                                            Activity Progress
-                                        </Typography>
-                                        
-                                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-                                            {workflow.activities.map((activity: Activity) => {
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, overflowX: 'auto', pb: 1 }}>
+                                            <Typography variant="caption" color="text.secondary" sx={{ minWidth: 'fit-content' }}>
+                                                Activities
+                                            </Typography>
+                                            {[1, 2, 3, 4, 5].map((activityNum) => {
+                                                const activity = workflow.activities.find(a => a.activityNumber === activityNum) || 
+                                                    { activityNumber: activityNum, numberCompleted: 0 };
                                                 const progress = calculateActivityProgress(activity, workflow.numberOfWorkflows);
                                                 return (
-                                                    <Box key={activity.activityNumber} sx={{ minWidth: 250, flex: '1 1 auto' }}>
+                                                    <Box key={activityNum} sx={{ minWidth: 200, flex: '1' }}>
                                                         <Box sx={{ p: 2, border: '1px solid #e0e0e0', borderRadius: 1 }}>
-                                                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                                                                <Typography variant="body2" fontWeight="medium">
-                                                                    Activity {activity.activityNumber}
+                                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                                <Typography variant="body2" fontWeight="medium" sx={{ minWidth: 'fit-content' }}>
+                                                                    {activityNum}
                                                                 </Typography>
-                                                                <Typography variant="body2" color="text.secondary">
-                                                                    {activity.numberCompleted}/{workflow.numberOfWorkflows}
-                                                                </Typography>
+                                                                <LinearProgress
+                                                                    variant="determinate"
+                                                                    value={progress}
+                                                                    color={getProgressColor(progress)}
+                                                                    sx={{ height: 6, borderRadius: 3, flex: 1, ml: 1 }}
+                                                                />
                                                             </Box>
-                                                            <LinearProgress
-                                                                variant="determinate"
-                                                                value={progress}
-                                                                color={getProgressColor(progress)}
-                                                                sx={{ height: 6, borderRadius: 3 }}
-                                                            />
-                                                            <Typography variant="caption" color="text.secondary">
-                                                                {progress.toFixed(1)}%
-                                                            </Typography>
                                                         </Box>
                                                     </Box>
                                                 );
@@ -208,8 +187,7 @@ export default function TestResultsPage({ runPrefix }: TestResultsPageProps) {
                                 </Card>
                             </Box>
                         ))}
-                    </Box>
-                </>
+                </Box>
             )}
         </Container>
     );
