@@ -1,0 +1,9 @@
+spring:
+  temporal:
+    namespace: ${TEMPORAL_NAMESPACE:default}
+    connection:
+      target: ${TEMPORAL_ADDRESS:127.0.0.1:7233}
+      mtls:
+        key-file: ${TEMPORAL_KEY_PATH:/Users/donald/stuff/source/certificates/temporal-client.key}
+        cert-chain-file: ${TEMPORAL_CERT_PATH:/Users/donald/stuff/source/certificates/temporal-client-leaf.pem}
+

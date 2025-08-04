@@ -21,15 +21,12 @@ spring:
       allowed-credentials: true
 
   temporal:
-    namespace: donald-demo.sdvdw
+    namespace: ${TEMPORAL_NAMESPACE:default}
     workersAutoDiscovery:
       packages:
         - com.demo.priority
     connection:
-      target: donald-demo.sdvdw.tmprl.cloud:7233
-      mtls:
-        key-file: /Users/donald/stuff/source/certificates/temporal-client.key
-        cert-chain-file: /Users/donald/stuff/source/certificates/temporal-client-leaf.pem
+      target: ${TEMPORAL_ADDRESS:127.0.0.1:7233}
 
     workers:
       - name: PriorityWorkflow

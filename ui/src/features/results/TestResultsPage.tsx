@@ -27,6 +27,12 @@ export default function TestResultsPage({ runPrefix }: TestResultsPageProps) {
     const [error, setError] = useState<string | null>(null);
     const [autoRefresh, setAutoRefresh] = useState(true);
 
+    const checkAllWorkflowsComplete = (results: TestResults) => {
+        return results.workflowsByPriority.every(workflow => 
+            calculateOverallProgress(workflow) === 100
+        );
+    };
+
     const fetchResults = async () => {
         if (!runPrefix) return;
         
@@ -36,6 +42,11 @@ export default function TestResultsPage({ runPrefix }: TestResultsPageProps) {
         try {
             const response = await axios.get(`/api/run-status?runPrefix=${encodeURIComponent(runPrefix)}`);
             setTestResults(response.data);
+            
+            // Auto-switch to manual refresh when all workflows are complete
+            if (autoRefresh && checkAllWorkflowsComplete(response.data)) {
+                setAutoRefresh(false);
+            }
         } catch (err: any) {
             setError(err.response?.data?.message || err.message || 'Failed to fetch results');
         } finally {
