@@ -34,7 +34,34 @@ $ temporal --address localhost:7233 --namespace default operator search-attribut
 ```
 
 # Run the application
+## Run the UI
+The UI is a react application.  To install the dependencies simply run the npm install command
+``` 
+$ npm install
 
+added 240 packages, and audited 241 packages in 6s
+
+56 packages are looking for funding
+  run `npm fund` for details
+
+found 0 vulnerabilities
+```
+Once installed then the npm run dev will run the development server.  Simply run the startwebui script to start.
+``` 
+$ ./startwebui.sh
+
+> ui@0.0.0 dev
+> vite
+
+
+  VITE v7.0.6  ready in 193 ms
+
+  ➜  Local:   https://localhost:4000/
+  ➜  Network: use --host to expose
+  ➜  press h + enter to show help 
+```
+
+## Run the Temporal Worker
 To start the worker...
 If running using a local temporal instance
 ```
@@ -63,4 +90,15 @@ $ temporal env get donald-demo
 
 $ ./startcloudworker.sh donald-demo
 ```
+
+# Using the application
+The app is split into two components the web UI that will start a web server up on port 4000 (Configured in vite.config.js) and the worker that also includes an API service which will start up on port 7080 (configured in src/main/resources/application.yaml).
+Once both components have successfully started up point the browser at https://localhost:4000.  This will show the interface below.
+
+![submit-screenshot.png](docs/submit-screenshot.png)
+
+The system will suffix a number to the "Workflow ID Prefix" so each workflow gets a unique identifier.  In order to build up a queue it is necessary to run a number of workflows, generally 100 are enough to showcase the priority in action but "any" number can be selected.  The system will start the workflows, making use of a delayed start so that all workflows fire at the same time.  (within ratelimiting capabilities of the namespace.)
+The results are displayed on the results page with workflows of each "priority" split out and the progress of the activities within each priority are shown with a progress bar.  This means that visually you can see the higher priority workflows completing first.
+
+![Priority Results](docs/priority-results.png)
 
