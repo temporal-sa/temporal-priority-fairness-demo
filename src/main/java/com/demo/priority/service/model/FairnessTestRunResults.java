@@ -46,7 +46,12 @@ public class FairnessTestRunResults {
             }
         }
 
-        workflowsByFairness.addAll(groups.values());
+        java.util.List<FairnessSummary> sorted = new java.util.ArrayList<>(groups.values());
+        sorted.sort(java.util.Comparator
+                .comparingInt(FairnessSummary::getFairnessWeight)
+                .reversed()
+                .thenComparing(FairnessSummary::getFairnessKey));
+        workflowsByFairness.addAll(sorted);
     }
 
     private void incrementActivityCompleted(int actComplete, FairnessSummary summary) {
@@ -64,4 +69,3 @@ public class FairnessTestRunResults {
         }
     }
 }
-

@@ -16,12 +16,15 @@ import {
 import { Refresh } from '@mui/icons-material';
 import axios from 'axios';
 import type { TestResults, WorkflowByPriority, Activity } from '../../lib/types/test-config';
+import { useSearchParams } from 'react-router-dom';
 
 interface TestResultsPageProps {
     runPrefix: string;
 }
 
 export default function TestResultsPage({ runPrefix }: TestResultsPageProps) {
+    const [searchParams] = useSearchParams();
+    const mode = (searchParams.get('mode') || 'priority').toLowerCase();
     const [testResults, setTestResults] = useState<TestResults | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -105,6 +108,7 @@ export default function TestResultsPage({ runPrefix }: TestResultsPageProps) {
                     <Typography variant="h4" component="h1">
                         Test Results: {runPrefix}
                     </Typography>
+                    <Chip label={`Mode: ${mode === 'fairness' ? 'Fairness' : 'Priority'}`} size="small" sx={{ mt: 0.5 }} />
                     {testResults && (
                         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
                             {testResults.totalWorkflowsInTest} workflows in test

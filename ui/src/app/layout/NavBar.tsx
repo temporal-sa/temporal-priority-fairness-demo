@@ -22,7 +22,7 @@ export default function NavBar() {
                      filter: 'brightness(0) invert(1)'
                    }} />
               <Typography variant="h5" fontWeight='bold'>
-                Temporal Priority Task Queue Demo
+                Temporal Priority/Fairness Task Queue Demo
               </Typography>
             </MenuItem>
 
@@ -38,4 +38,3 @@ export default function NavBar() {
 
   )
 }
-

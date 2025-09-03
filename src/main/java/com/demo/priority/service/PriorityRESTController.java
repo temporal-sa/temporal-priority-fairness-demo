@@ -92,8 +92,8 @@ public class PriorityRESTController {
             java.util.List<Band> bands = wfConfig.getBands();
             if (bands == null || bands.isEmpty()) {
                 bands = new java.util.ArrayList<>();
-                Band b1 = new Band(); b1.setKey("first-class");    b1.setWeight(3);
-                Band b2 = new Band(); b2.setKey("business-class");  b2.setWeight(2);
+                Band b1 = new Band(); b1.setKey("first-class");    b1.setWeight(6);
+                Band b2 = new Band(); b2.setKey("business-class");  b2.setWeight(3);
                 Band b3 = new Band(); b3.setKey("economy-class");   b3.setWeight(1);
                 bands.add(b1); bands.add(b2); bands.add(b3);
             }
