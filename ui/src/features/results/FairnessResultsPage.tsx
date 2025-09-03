@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     Container,
     Typography,
@@ -14,6 +14,16 @@ import {
 } from '@mui/material';
 import { Refresh } from '@mui/icons-material';
 import axios from 'axios';
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip as RechartsTooltip,
+  Legend
+} from 'recharts';
 import type { FairnessTestResults, WorkflowByFairness, Activity } from '../../lib/types/test-config';
 
 interface FairnessResultsPageProps {
@@ -25,6 +35,24 @@ export default function FairnessResultsPage({ runPrefix }: FairnessResultsPagePr
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [autoRefresh, setAutoRefresh] = useState(true);
+
+    // Rolling metrics (client-only) to visualize fairness over time
+    const prevStepsRef = useRef<Record<string, number>>({});
+    const rateSamplesRef = useRef<Record<string, number[]>>({});
+    const t0Ref = useRef<number | null>(null);
+    const lastTsRef = useRef<number | null>(null);
+    const historyRef = useRef<Array<{ t: number; bands: Record<string, number> }>>([]);
+    const eventStreamRef = useRef<string[]>([]);
+
+    const [summary, setSummary] = useState<{
+        chartData: Array<Record<string, number>>;
+        etaSecondsById: Record<string, number | null>;
+        rateById: Record<string, number>;
+        labelsById: Record<string, string>;
+        idsInOrder: string[];
+        eventStream: string[];
+        progressPctById: Record<string, number>;
+    }>({ chartData: [], etaSecondsById: {}, rateById: {}, labelsById: {}, idsInOrder: [], eventStream: [], progressPctById: {} });
 
     const checkAllWorkflowsComplete = (results: FairnessTestResults) => {
         return results.workflowsByFairness.every(workflow => 
@@ -39,6 +67,7 @@ export default function FairnessResultsPage({ runPrefix }: FairnessResultsPagePr
         try {
             const response = await axios.get(`/api/run-status-fairness?runPrefix=${encodeURIComponent(runPrefix)}`);
             setTestResults(response.data);
+            updateSummaryFromResults(response.data);
             if (autoRefresh && checkAllWorkflowsComplete(response.data)) {
                 setAutoRefresh(false);
             }
@@ -76,6 +105,84 @@ export default function FairnessResultsPage({ runPrefix }: FairnessResultsPagePr
             'economy-class': '#2e7d32'
         };
         return palette[key] || '#9e9e9e';
+    };
+
+    const avg = (arr: number[]) => (arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0);
+
+    const bandId = (wf: WorkflowByFairness) => `${wf.fairnessKey}|${wf.fairnessWeight}`;
+    const bandLabel = (wf: WorkflowByFairness) => `${wf.fairnessKey} (w=${wf.fairnessWeight})`;
+    const totalStepsFor = (wf: WorkflowByFairness) => wf.numberOfWorkflows * 5;
+    const completedStepsFor = (wf: WorkflowByFairness) => wf.activities.reduce((s, a) => s + a.numberCompleted, 0);
+
+    const updateSummaryFromResults = (results: FairnessTestResults) => {
+        const now = Date.now();
+        if (t0Ref.current == null) t0Ref.current = now;
+        const deltaSec = lastTsRef.current ? Math.max(0.5, (now - lastTsRef.current) / 1000) : 3; // fallback to ~refresh interval
+        lastTsRef.current = now;
+
+        const etaSecondsById: Record<string, number | null> = {};
+        const rateById: Record<string, number> = {};
+        const labelsById: Record<string, string> = {};
+        const progressPctById: Record<string, number> = {};
+        const idsInOrder: string[] = [...results.workflowsByFairness]
+            .sort((a, b) => b.fairnessWeight - a.fairnessWeight || a.fairnessKey.localeCompare(b.fairnessKey))
+            .map(b => bandId(b));
+
+        // Update per-band rates, ETAs, progress, and event stream
+        for (const wf of results.workflowsByFairness) {
+            const id = bandId(wf);
+            const stepsTotal = totalStepsFor(wf);
+            const stepsCompleted = completedStepsFor(wf);
+            const prev = prevStepsRef.current[id] ?? 0;
+            const delta = Math.max(0, stepsCompleted - prev);
+            prevStepsRef.current[id] = stepsCompleted;
+
+            // Update rolling rate samples (steps/sec)
+            const samples = rateSamplesRef.current[id] ?? [];
+            samples.push(delta / deltaSec);
+            if (samples.length > 5) samples.shift();
+            rateSamplesRef.current[id] = samples;
+            const rate = avg(samples);
+            rateById[id] = rate;
+
+            const remaining = Math.max(0, stepsTotal - stepsCompleted);
+            etaSecondsById[id] = rate > 0 ? remaining / rate : null;
+            labelsById[id] = bandLabel(wf);
+            progressPctById[id] = stepsTotal > 0 ? (stepsCompleted / stepsTotal) * 100 : 0;
+
+            // Event stream ticks (cap total to 100)
+            const ticksToAdd = Math.min(delta, 50); // avoid flooding UI in one refresh
+            for (let i = 0; i < ticksToAdd; i++) eventStreamRef.current.push(id);
+        }
+        if (eventStreamRef.current.length > 100) {
+            eventStreamRef.current.splice(0, eventStreamRef.current.length - 100);
+        }
+
+        // Append history point for chart
+        const t = (now - (t0Ref.current ?? now)) / 1000;
+        const bandsPoint: Record<string, number> = {};
+        for (const wf of results.workflowsByFairness) {
+            const id = bandId(wf);
+            bandsPoint[id] = progressPctById[id] ?? 0;
+        }
+        historyRef.current.push({ t, bands: bandsPoint });
+        if (historyRef.current.length > 40) historyRef.current.shift();
+
+        // Recharts data shape: { t, [id1]: pct, [id2]: pct, ... }
+        const chartData = historyRef.current.map(p => ({
+            t: p.t,
+            ...p.bands
+        }));
+
+        setSummary({
+            chartData,
+            etaSecondsById,
+            rateById,
+            labelsById,
+            idsInOrder,
+            eventStream: [...eventStreamRef.current],
+            progressPctById,
+        });
     };
 
     const getProgressColor = (progress: number) => {
@@ -122,6 +229,91 @@ export default function FairnessResultsPage({ runPrefix }: FairnessResultsPagePr
                 </Box>
             </Box>
 
+            {/* Fairness summary visuals */}
+            {summary.chartData.length > 0 && (
+                <Card sx={{ mb: 3 }}>
+                    <CardContent>
+                        <Typography variant="h6" sx={{ mb: 2 }}>Cumulative Progress by Band</Typography>
+                        <Box sx={{ width: '100%', height: 220 }}>
+                            <ResponsiveContainer>
+                                <LineChart data={summary.chartData} margin={{ left: 8, right: 16, top: 8, bottom: 8 }}>
+                                    <CartesianGrid strokeDasharray="3 3" />
+                                    <XAxis dataKey="t" tickFormatter={(s) => `${Math.round(Number(s))}s`} />
+                                    <YAxis domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
+                                    <RechartsTooltip formatter={(v: any) => `${(Number(v) || 0).toFixed(1)}%`} labelFormatter={(l) => `${Math.round(Number(l))}s`} />
+                                    <Legend />
+                                    {summary.idsInOrder.map((id) => {
+                                        const key = id.split('|')[0];
+                                        return (
+                                            <Line key={id} type="monotone" dataKey={id} stroke={getKeyColor(key)} dot={false} strokeWidth={2} />
+                                        );
+                                    })}
+                                </LineChart>
+                            </ResponsiveContainer>
+                        </Box>
+
+                        {/* Event stream: last ~100 activity completions */}
+                        <Box sx={{ mt: 2 }}>
+                            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>Recent activity completions</Typography>
+                            {/* Full-width, larger tick strip */}
+                            <Box sx={{ width: '100%' }}>
+                                <Box sx={{
+                                    display: 'flex',
+                                    flexWrap: 'nowrap',
+                                    overflow: 'hidden',
+                                    border: '1px solid #e0e0e0',
+                                    borderRadius: 1,
+                                    p: 0.75,
+                                    width: '100%'
+                                }}>
+                                    {summary.eventStream.map((id, i) => {
+                                        const key = id.split('|')[0];
+                                        return (
+                                            <Box
+                                                key={`${i}-${id}`}
+                                                sx={{
+                                                    width: 10,
+                                                    height: 18,
+                                                    backgroundColor: getKeyColor(key),
+                                                    mr: 1,
+                                                    borderRadius: 0.75
+                                                }}
+                                            />
+                                        );
+                                    })}
+                                </Box>
+                            </Box>
+                            {/* ETA chips on a new line below the strip */}
+                            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 1.5 }}>
+                                {summary.idsInOrder.map((id) => {
+                                    const key = id.split('|')[0];
+                                    const label = summary.labelsById[id] || key;
+                                    const eta = summary.etaSecondsById[id];
+                                    const pct = summary.progressPctById[id] || 0;
+                                    return (
+                                        <Chip
+                                            key={`eta-${id}`}
+                                            label={`${label} ~${eta != null ? Math.max(0, Math.round(eta)) : '—'}s`}
+                                            sx={{ backgroundColor: '#f5f5f5' }}
+                                            icon={
+                                                <Box sx={{ display: 'flex', alignItems: 'center', pl: 0.5 }}>
+                                                    <CircularProgress
+                                                        variant="determinate"
+                                                        value={Math.min(100, Math.max(0, pct))}
+                                                        size={18}
+                                                        sx={{ color: getKeyColor(key) }}
+                                                    />
+                                                </Box>
+                                            }
+                                        />
+                                    );
+                                })}
+                            </Box>
+                        </Box>
+                    </CardContent>
+                </Card>
+            )}
+
             {loading && !testResults && (
                 <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
                     <CircularProgress />
@@ -156,6 +348,10 @@ export default function FairnessResultsPage({ runPrefix }: FairnessResultsPagePr
                                         </Typography>
                                         <Typography variant="body2" color="text.secondary">
                                             {calculateOverallProgress(workflow).toFixed(1)}% complete
+                                        </Typography>
+                                        {/* Throughput hint */}
+                                        <Typography variant="body2" color="text.secondary">
+                                            ~{(summary.rateById[bandId(workflow)] ?? 0).toFixed(2)} steps/s
                                         </Typography>
                                         <LinearProgress
                                             variant="determinate"
