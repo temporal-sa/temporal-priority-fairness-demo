@@ -1,7 +1,7 @@
 package com.demo.priority.service;
-import com.demo.priority.service.model.PriorityTestRunResults;
-import com.demo.priority.service.model.PriorityWorkflowData;
+import com.demo.priority.service.model.*;
 import com.demo.priority.service.workflows.PriorityWorkflow;
+import com.demo.priority.service.workflows.FairnessWorkflow;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.client.WorkflowClient;
 
@@ -61,30 +61,69 @@ public class PriorityRESTController {
         }
         LocalDateTime startTime = this.getTargetWFStartTime(wfConfig.getNumberOfWorkflows());
 
-        for (int workflowNum = 1; workflowNum <  wfConfig.getNumberOfWorkflows() + 1; workflowNum++){
-            logger.debug("Starting workflow {}-{} ", wfConfig.getWorkflowIdPrefix(), workflowNum);
+        String mode = (wfConfig.getMode() == null) ? "priority" : wfConfig.getMode().trim().toLowerCase();
+        if (!mode.equals("fairness")) {
+            // Priority mode (default)
+            for (int workflowNum = 1; workflowNum <  wfConfig.getNumberOfWorkflows() + 1; workflowNum++){
+                logger.debug("Starting priority workflow {}-{} ", wfConfig.getWorkflowIdPrefix(), workflowNum);
 
-            PriorityWorkflowData inputParameters = new PriorityWorkflowData();
-            inputParameters.setPriority(((workflowNum - 1) % 5) + 1);
+                PriorityWorkflowData inputParameters = new PriorityWorkflowData();
+                inputParameters.setPriority(((workflowNum - 1) % 5) + 1);
 
-            SearchAttributes searchAttribs = SearchAttributes.newBuilder()
-                    .set(SearchAttributeKey.forLong("Priority"), (long)inputParameters.getPriority())
-                    .set(SearchAttributeKey.forLong("ActivitiesCompleted"), (long)0)
-                    .build();
+                SearchAttributes searchAttribs = SearchAttributes.newBuilder()
+                        .set(SearchAttributeKey.forLong("Priority"), (long)inputParameters.getPriority())
+                        .set(SearchAttributeKey.forLong("ActivitiesCompleted"), (long)0)
+                        .build();
 
-            PriorityWorkflow workflow = client.newWorkflowStub(
-                    PriorityWorkflow.class,
-                    WorkflowOptions.newBuilder()
-                            .setTaskQueue(workflowTaskQueueName)
-                            .setWorkflowId(wfConfig.getWorkflowIdPrefix() + "-" + workflowNum)
-                            .setStartDelay(this.getStartDelay(startTime))
-                            .setTypedSearchAttributes(searchAttribs)
-                            .build()
-            );
+                PriorityWorkflow workflow = client.newWorkflowStub(
+                        PriorityWorkflow.class,
+                        WorkflowOptions.newBuilder()
+                                .setTaskQueue(workflowTaskQueueName)
+                                .setWorkflowId(wfConfig.getWorkflowIdPrefix() + "-" + workflowNum)
+                                .setStartDelay(this.getStartDelay(startTime))
+                                .setTypedSearchAttributes(searchAttribs)
+                                .build()
+                );
 
-            WorkflowExecution priorityWFExecution = WorkflowClient.start(workflow::priorityWorkflow, inputParameters);
+                WorkflowExecution priorityWFExecution = WorkflowClient.start(workflow::priorityWorkflow, inputParameters);
+            }
+        } else {
+            // Fairness mode
+            java.util.List<Band> bands = wfConfig.getBands();
+            if (bands == null || bands.isEmpty()) {
+                bands = new java.util.ArrayList<>();
+                Band b1 = new Band(); b1.setKey("first-class");    b1.setWeight(3);
+                Band b2 = new Band(); b2.setKey("business-class");  b2.setWeight(2);
+                Band b3 = new Band(); b3.setKey("economy-class");   b3.setWeight(1);
+                bands.add(b1); bands.add(b2); bands.add(b3);
+            }
 
+            for (int workflowNum = 1; workflowNum <  wfConfig.getNumberOfWorkflows() + 1; workflowNum++){
+                Band band = bands.get((workflowNum - 1) % bands.size());
+                logger.debug("Starting fairness workflow {}-{} [{}:{}]", wfConfig.getWorkflowIdPrefix(), workflowNum, band.getKey(), band.getWeight());
 
+                FairnessWorkflowData inputParameters = new FairnessWorkflowData();
+                inputParameters.setFairnessKey(band.getKey());
+                inputParameters.setFairnessWeight(band.getWeight());
+
+                SearchAttributes searchAttribs = SearchAttributes.newBuilder()
+                        .set(SearchAttributeKey.forKeyword("FairnessKey"), band.getKey())
+                        .set(SearchAttributeKey.forLong("FairnessWeight"), (long) band.getWeight())
+                        .set(SearchAttributeKey.forLong("ActivitiesCompleted"), (long)0)
+                        .build();
+
+                FairnessWorkflow workflow = client.newWorkflowStub(
+                        FairnessWorkflow.class,
+                        WorkflowOptions.newBuilder()
+                                .setTaskQueue("fairness-queue")
+                                .setWorkflowId(wfConfig.getWorkflowIdPrefix() + "-" + workflowNum)
+                                .setStartDelay(this.getStartDelay(startTime))
+                                .setTypedSearchAttributes(searchAttribs)
+                                .build()
+                );
+
+                WorkflowExecution wfExec = WorkflowClient.start(workflow::fairnessWorkflow, inputParameters);
+            }
         }
         return "Done";
     } // End startWorkflows
@@ -99,9 +138,16 @@ public class PriorityRESTController {
         PriorityTestRunResults results = new PriorityTestRunResults(wfList);
         logger.debug("There are [{}] in the test", numberWFInTest);
 
-        //logger.debug("WorkflowMetadata [" + workflowMetadata.toList().getFirst().getTypedSearchAttributes().get(SearchAttributeKey.forLong("Priority")) + "]");
         return ResponseEntity.of(Optional.of(results));
     }   // End getRunStatus
+
+    @GetMapping("run-status-fairness")
+    public ResponseEntity<FairnessTestRunResults> getRunStatusFairness(@RequestParam(required = true) String runPrefix) {
+        Stream<WorkflowExecutionMetadata> workflowMetadata = client.listExecutions("WorkflowId STARTS_WITH \"" + runPrefix + "\"");
+        List<WorkflowExecutionMetadata> wfList = (List<WorkflowExecutionMetadata>)workflowMetadata.toList();
+        FairnessTestRunResults results = new FairnessTestRunResults(wfList);
+        return ResponseEntity.of(Optional.of(results));
+    }
 
 
     private Duration getStartDelay(LocalDateTime pTargetStart)
