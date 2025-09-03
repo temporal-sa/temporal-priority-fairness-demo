@@ -14,10 +14,22 @@ The workflow summary shown below for a single workflow instance.
 ![Workflow-Summary.png](docs/Workflow-summary.png)
 
 # Pre-requisites
-Using the latest dev server (1.4 or higher, or from docker-compose repo 1.28.1 or higher) set the configuration `matching.useNewMatcher` as mentioned in pre-release docs. 
+Using the latest dev server (1.4 or higher, or from docker-compose repo 1.28.1 or higher) enable both the new matcher and fairness in Matching. Set the dynamic config values `matching.useNewMatcher` and `matching.useFairness`.
+
+If you run Temporal via the CLI dev server, start it with both flags, for example:
+```
+temporal server start-dev \
+  --dynamic-config-value matching.useNewMatcher=true \
+  --dynamic-config-value matching.useFairness=true
+```
+
 Assuming you are using the auto-setup [docker-compose](https://github.com/temporalio/docker-compose) config then add the following to your dynamicconfig
 ```
 matching.useNewMatcher:
+  - value: true
+    constraints:
+       namespace: default
+matching.useFairness:
   - value: true
     constraints:
        namespace: default
