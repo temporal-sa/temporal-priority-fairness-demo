@@ -27,8 +27,8 @@ export default function SubmitTest() {
         numberOfWorkflows: 100,
         mode: 'priority',
         bands: [
-            { key: 'first-class', weight: 6 },
-            { key: 'business-class', weight: 3 },
+            { key: 'first-class', weight: 15 },
+            { key: 'business-class', weight: 5 },
             { key: 'economy-class', weight: 1 },
         ]
     });

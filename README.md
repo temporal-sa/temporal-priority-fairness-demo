@@ -92,7 +92,7 @@ The system will suffix a number to the "Workflow ID Prefix" so each workflow get
 
 Modes
 - Priority (default): Workflows assign activity priorities 1..5. Results group by priority and show progress bars per activity. Higher priority workflows progress first when activity executors are constrained.
-- Fairness: Each workflow is assigned a fairness key and weight (bands). Defaults are `first-class` (6), `business-class` (3), `economy-class` (1). Results group by fairness key and weight. The UI lets you add/remove bands and edit keys/weights.
+- Fairness: Each workflow is assigned a fairness key and weight (bands). Defaults are `first-class` (15), `business-class` (5), `economy-class` (1). Results group by fairness key and weight. The UI lets you add/remove bands and edit keys/weights.
 
 Viewing results
 - After submit, the UI navigates to `/results/<runPrefix>?mode=priority|fairness`.

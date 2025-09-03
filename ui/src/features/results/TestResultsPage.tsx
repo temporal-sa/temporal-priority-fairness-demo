@@ -171,8 +171,8 @@ export default function TestResultsPage({ runPrefix }: TestResultsPageProps) {
                                             />
                                         </Box>
 
-                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, overflowX: 'auto', pb: 1 }}>
-                                            <Typography variant="caption" color="text.secondary" sx={{ minWidth: 'fit-content' }}>
+                                        <Box sx={{ display: 'flex', alignItems: 'stretch', gap: 2, flexWrap: 'wrap', pb: 1 }}>
+                                            <Typography variant="caption" color="text.secondary" sx={{ flex: '0 0 80px' }}>
                                                 Activities
                                             </Typography>
                                             {[1, 2, 3, 4, 5].map((activityNum) => {
@@ -180,7 +180,7 @@ export default function TestResultsPage({ runPrefix }: TestResultsPageProps) {
                                                     { activityNumber: activityNum, numberCompleted: 0 };
                                                 const progress = calculateActivityProgress(activity, workflow.numberOfWorkflows);
                                                 return (
-                                                    <Box key={activityNum} sx={{ minWidth: 200, flex: '1' }}>
+                                                    <Box key={activityNum} sx={{ flex: '1 1 160px', minWidth: 160 }}>
                                                         <Box sx={{ p: 2, border: '1px solid #e0e0e0', borderRadius: 1 }}>
                                                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                                                 <Typography variant="body2" fontWeight="medium" sx={{ minWidth: 'fit-content' }}>
