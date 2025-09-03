@@ -63,8 +63,7 @@ export default function TestResultsPage({ runPrefix }: TestResultsPageProps) {
 
     useEffect(() => {
         if (!autoRefresh) return;
-        
-        const interval = setInterval(fetchResults, 3000); // Refresh every 3 seconds
+        const interval = setInterval(fetchResults, 1500); // Refresh every 1.5s while in progress
         return () => clearInterval(interval);
     }, [autoRefresh, runPrefix]);
 

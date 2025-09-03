@@ -88,7 +88,7 @@ export default function FairnessResultsPage({ runPrefix }: FairnessResultsPagePr
     useEffect(() => { fetchResults(); }, [runPrefix]);
     useEffect(() => {
         if (!autoRefresh) return;
-        const interval = setInterval(fetchResults, 3000);
+        const interval = setInterval(fetchResults, 1500); // Refresh every 1.5s while in progress
         return () => clearInterval(interval);
     }, [autoRefresh, runPrefix]);
 
@@ -106,12 +106,30 @@ export default function FairnessResultsPage({ runPrefix }: FairnessResultsPagePr
     };
 
     const getKeyColor = (key: string) => {
-        const palette: Record<string, string> = {
-            'first-class': '#6a1b9a',
-            'business-class': '#1976d2',
-            'economy-class': '#2e7d32'
+        // Reserved colors for standard demo bands
+        const reserved: Record<string, string> = {
+            'first-class': '#6a1b9a', // purple
+            'business-class': '#1976d2', // blue
+            'economy-class': '#2e7d32', // green
         };
-        return palette[key] || '#9e9e9e';
+        if (reserved[key]) return reserved[key];
+
+        // Interesting palette for additional bands (avoid duplicates with reserved)
+        const extra = [
+            '#ff6f00', // deep orange
+            '#00acc1', // cyan
+            '#d81b60', // pink
+            '#8e24aa', // violet
+            '#5e35b1', // indigo
+            '#00897b', // teal
+            '#c0ca33', // lime
+            '#ef6c00', // orange
+            '#455a64', // blue grey
+        ];
+        // Deterministic pick based on key hash
+        let h = 0;
+        for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;
+        return extra[h % extra.length];
     };
 
     const avg = (arr: number[]) => (arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0);
@@ -124,7 +142,7 @@ export default function FairnessResultsPage({ runPrefix }: FairnessResultsPagePr
     const updateSummaryFromResults = (results: FairnessTestResults) => {
         const now = Date.now();
         if (t0Ref.current == null) t0Ref.current = now;
-        const deltaSec = lastTsRef.current ? Math.max(0.5, (now - lastTsRef.current) / 1000) : 3; // fallback to ~refresh interval
+        const deltaSec = lastTsRef.current ? Math.max(0.25, (now - lastTsRef.current) / 1000) : 1.5; // fallback aligned with 1.5s refresh
         lastTsRef.current = now;
 
         const etaSecondsById: Record<string, number | null> = {};
@@ -181,7 +199,9 @@ export default function FairnessResultsPage({ runPrefix }: FairnessResultsPagePr
             bandsPoint[id] = progressPctById[id] ?? 0;
         }
         historyRef.current.push({ t, bands: bandsPoint });
-        if (historyRef.current.length > 40) historyRef.current.shift();
+        // Keep a longer history so curves don't appear to "start late" at faster refresh intervals.
+        const maxSamples = 240; // ~120s at 500ms interval
+        if (historyRef.current.length > maxSamples) historyRef.current.shift();
 
         // Recharts data shape: { t, [id1]: pct, [id2]: pct, ... }
         const chartData = historyRef.current.map(p => ({
@@ -189,13 +209,13 @@ export default function FairnessResultsPage({ runPrefix }: FairnessResultsPagePr
             ...p.bands
         }));
 
-        // Compute X domain max: include ETAs and finish times
+        // Compute a more static X domain: step up to 30s, 60s, 90s, 120s, etc., based on elapsed/finish times only
         const tNow = (now - (t0Ref.current ?? now)) / 1000;
-        const maxEta = Object.entries(etaSecondsById)
-            .filter(([id]) => finishTimesRef.current[id] == null && etaSecondsById[id] != null)
-            .reduce((m, [, v]) => Math.max(m, v ?? 0), 0);
         const maxFinish = Object.values(finishTimesRef.current).reduce((m, v) => Math.max(m, v ?? 0), 0);
-        const chartMaxX = Math.max(tNow + maxEta + 5, maxFinish + 5, tNow + 5);
+        const rawMax = Math.max(tNow, maxFinish);
+        // Non-linear step bounds for a more intuitive axis: 10s, 25s, 60s, 120s, 240s, then 60s steps
+        const stepBounds = [10, 25, 60, 120, 240];
+        let chartMaxX = stepBounds.find(b => rawMax <= b) ?? Math.ceil(rawMax / 60) * 60;
 
         // Build 10-bin stacked data from recent event stream (last 30s)
         const bins = 10;
@@ -320,16 +340,7 @@ export default function FairnessResultsPage({ runPrefix }: FairnessResultsPagePr
                         {/* Centered, prominent ETA/progress chips */}
                         <Box sx={{ mt: 2 }}>
                             <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1.5, flexWrap: 'wrap' }}>
-                                {[...summary.idsInOrder]
-                                  .sort((a, b) => {
-                                      const fa = finishTimesRef.current[a];
-                                      const fb = finishTimesRef.current[b];
-                                      if (fa != null && fb == null) return -1;
-                                      if (fb != null && fa == null) return 1;
-                                      const ea = summary.etaSecondsById[a] ?? Number.POSITIVE_INFINITY;
-                                      const eb = summary.etaSecondsById[b] ?? Number.POSITIVE_INFINITY;
-                                      return ea - eb;
-                                  })
+                                {summary.idsInOrder
                                   .map((id, idx) => {
                                     const key = id.split('|')[0];
                                     const label = summary.labelsById[id] || key;
