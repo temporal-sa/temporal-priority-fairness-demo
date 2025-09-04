@@ -28,11 +28,11 @@ export default function SubmitTest() {
         mode: 'priority',
         // Defaults for Fairness mode
         bands: [
-            { key: 'vip-class', weight: 30 },
-            { key: 'first-class', weight: 10 },
-            { key: 'business-class', weight: 5 },
-            { key: 'economy-class', weight: 2 },
-            { key: 'standby-list', weight: 1 },
+            { key: 'vip-class', weight: 30, count: 10 },
+            { key: 'first-class', weight: 10, count: 30 },
+            { key: 'business-class', weight: 5,  count: 60 },
+            { key: 'economy-class', weight: 2,  count: 100 },
+            { key: 'standby-list', weight: 1,  count: 100 },
         ]
     });
     const [bandErrors, setBandErrors] = useState<Array<{ key?: string; weight?: string }>>([]);
@@ -68,10 +68,16 @@ export default function SubmitTest() {
             const nextCount = nextIsFairness ? 300 : 100; // Fairness defaults to 300
             let nextBands = prev.bands || [];
             if (nextIsFairness && nextBands.length > 0) {
-                // Auto-divide into equal parts once when switching to Fairness
-                const per = Math.floor(nextCount / nextBands.length);
-                const remainder = nextCount % nextBands.length;
-                nextBands = nextBands.map((b, i) => ({ ...b, count: per + (i < remainder ? 1 : 0) }));
+                // Preferred defaults when switching to Fairness
+                const preferred = [10, 30, 60, 100, 100];
+                if (nextBands.length === 5) {
+                    nextBands = nextBands.map((b, i) => ({ ...b, count: preferred[i] }));
+                } else {
+                    // Fallback to even split if different band count
+                    const per = Math.floor(nextCount / nextBands.length);
+                    const remainder = nextCount % nextBands.length;
+                    nextBands = nextBands.map((b, i) => ({ ...b, count: per + (i < remainder ? 1 : 0) }));
+                }
             }
             return {
                 ...prev,

@@ -43,7 +43,8 @@ export default function FairnessResultsPage({ runPrefix }: FairnessResultsPagePr
     // Rolling metrics (client-only) to visualize fairness over time
     const prevStepsRef = useRef<Record<string, number>>({});
     const rateSamplesRef = useRef<Record<string, number[]>>({});
-    const t0Ref = useRef<number | null>(null);
+    const t0Ref = useRef<number | null>(null);            // first data fetch
+    const firstProgressT0Ref = useRef<number | null>(null); // first time any progress > 0
     const lastTsRef = useRef<number | null>(null);
     const historyRef = useRef<Array<{ t: number; bands: Record<string, number> }>>([]);
     const finishTimesRef = useRef<Record<string, number>>({}); // seconds since t0 when band first hit 100%
@@ -177,6 +178,14 @@ export default function FairnessResultsPage({ runPrefix }: FairnessResultsPagePr
             const delta = Math.max(0, stepsCompleted - prev);
             prevStepsRef.current[id] = stepsCompleted;
 
+            // Detect the first moment any progress occurs to shift chart start
+            if (firstProgressT0Ref.current == null && delta > 0) {
+                firstProgressT0Ref.current = now;
+                // Reset history so initial idle period is excluded
+                historyRef.current = [];
+                finishTimesRef.current = {};
+            }
+
             // Update rolling rate samples (steps/sec)
             const samples = rateSamplesRef.current[id] ?? [];
             samples.push(delta / deltaSec);
@@ -192,7 +201,8 @@ export default function FairnessResultsPage({ runPrefix }: FairnessResultsPagePr
 
             // Track finish times (first time reaching 100%)
             if ((progressPctById[id] ?? 0) >= 100 && finishTimesRef.current[id] == null) {
-                const t = (now - (t0Ref.current ?? now)) / 1000;
+                const base = firstProgressT0Ref.current ?? t0Ref.current ?? now;
+                const t = (now - base) / 1000;
                 finishTimesRef.current[id] = t;
             }
 
@@ -207,7 +217,8 @@ export default function FairnessResultsPage({ runPrefix }: FairnessResultsPagePr
         }
 
         // Append history point for chart
-        const t = (now - (t0Ref.current ?? now)) / 1000;
+        const base = firstProgressT0Ref.current ?? t0Ref.current ?? now;
+        const t = (now - base) / 1000;
         const bandsPoint: Record<string, number> = {};
         for (const wf of results.workflowsByFairness) {
             const id = bandId(wf);
@@ -224,13 +235,11 @@ export default function FairnessResultsPage({ runPrefix }: FairnessResultsPagePr
             ...p.bands
         }));
 
-        // Compute a more static X domain: step up to 30s, 60s, 90s, 120s, etc., based on elapsed/finish times only
-        const tNow = (now - (t0Ref.current ?? now)) / 1000;
+        // Compute a simple padded X domain: ceil(rawMax * 1.1)
+        const tNow = (now - base) / 1000;
         const maxFinish = Object.values(finishTimesRef.current).reduce((m, v) => Math.max(m, v ?? 0), 0);
         const rawMax = Math.max(tNow, maxFinish);
-        // Non-linear step bounds for a more intuitive axis: 10s, 25s, 60s, 120s, 240s, then 60s steps
-        const stepBounds = [10, 25, 60, 120, 240];
-        let chartMaxX = stepBounds.find(b => rawMax <= b) ?? Math.ceil(rawMax / 60) * 60;
+        let chartMaxX = Math.ceil(rawMax * 1.1);
 
         // Build 10-bin stacked data from recent event stream (last 30s)
         const bins = 10;
@@ -322,7 +331,16 @@ export default function FairnessResultsPage({ runPrefix }: FairnessResultsPagePr
                                         const key = id.split('|')[0];
                                         const name = summary.labelsById[id] || key;
                                         return (
-                                            <Line key={id} type="monotone" dataKey={id} stroke={getKeyColor(key, idx)} dot={false} strokeWidth={2} name={name} />
+                                            <Line
+                                                key={id}
+                                                type="linear"
+                                                dataKey={id}
+                                                stroke={getKeyColor(key, idx)}
+                                                dot={false}
+                                                strokeWidth={2}
+                                                name={name}
+                                                isAnimationActive={false}
+                                            />
                                         );
                                     })}
                                     {/* Current value dots and ETA/Finish reference lines */}
