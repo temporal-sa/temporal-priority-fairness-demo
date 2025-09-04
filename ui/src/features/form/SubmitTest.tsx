@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { Box, Button, TextField, Paper, Typography, Alert, CircularProgress } from "@mui/material";
+import { Box, Button, TextField, Paper, Typography, Alert, CircularProgress, InputAdornment } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import type { WorkflowTestConfig, Mode, Band } from "../../lib/types/test-config";
 import { RadioGroup, FormControlLabel, Radio, Stack, IconButton } from "@mui/material";
-import { Add, Delete } from "@mui/icons-material";
+import { Add, Delete, Lock } from "@mui/icons-material";
 
 
 export default function SubmitTest() {
@@ -39,6 +39,10 @@ export default function SubmitTest() {
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    // Preset scenario state (used for curated one-click demos)
+    const [presetLocked, setPresetLocked] = useState<boolean>(false);
+    const [presetName, setPresetName] = useState<string | null>(null);
+    const [presetBlurb, setPresetBlurb] = useState<string | null>(null);
 
     const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = event.target;
@@ -63,29 +67,16 @@ export default function SubmitTest() {
 
     const handleModeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const mode = (event.target as HTMLInputElement).value as Mode;
-        setFormData(prev => {
-            const nextIsFairness = mode === 'fairness';
-            const nextCount = nextIsFairness ? 300 : 100; // Fairness defaults to 300
-            let nextBands = prev.bands || [];
-            if (nextIsFairness && nextBands.length > 0) {
-                // Preferred defaults when switching to Fairness
-                const preferred = [10, 30, 60, 100, 100];
-                if (nextBands.length === 5) {
-                    nextBands = nextBands.map((b, i) => ({ ...b, count: preferred[i] }));
-                } else {
-                    // Fallback to even split if different band count
-                    const per = Math.floor(nextCount / nextBands.length);
-                    const remainder = nextCount % nextBands.length;
-                    nextBands = nextBands.map((b, i) => ({ ...b, count: per + (i < remainder ? 1 : 0) }));
-                }
-            }
-            return {
-                ...prev,
-                mode,
-                numberOfWorkflows: nextCount,
-                bands: nextBands,
-            };
-        });
+        if (mode === 'fairness') {
+            // Auto-apply airline preset as the default for Fairness mode
+            applyAirlinePreset();
+            return;
+        }
+        // Switching to Priority: clear preset UI and restore defaults
+        setFormData(prev => ({ ...prev, mode: 'priority', numberOfWorkflows: 100 }));
+        setPresetLocked(false);
+        setPresetName(null);
+        setPresetBlurb(null);
     };
 
     const updateBand = (index: number, field: keyof Band, value: string | number) => {
@@ -101,6 +92,35 @@ export default function SubmitTest() {
         });
         // Revalidate after change
         setTimeout(() => validateAndSetBands(), 0);
+    };
+
+    const applyAirlinePreset = () => {
+        const airlineBands: Band[] = [
+            { key: 'vip',            weight: 20, count: 20 },
+            { key: 'first-class',    weight: 10, count: 40 },
+            { key: 'business-class', weight: 5,  count: 80 },
+            { key: 'economy-class',  weight: 2,  count: 150 },
+            { key: 'standby-list',   weight: 1,  count: 150 },
+        ];
+        const total = airlineBands.reduce((s, b) => s + (b.count || 0), 0);
+        setFormData(prev => ({
+            ...prev,
+            mode: 'fairness',
+            bands: airlineBands,
+            numberOfWorkflows: total,
+        }));
+        setPresetLocked(true);
+        setPresetName('Airline Boarding Priority Queue');
+        setPresetBlurb('This setup models how airlines balance different passenger categories during boarding and standby allocation. The “virtual queues” created by fairness are like boarding groups');
+        // Reset any existing validation errors for a clean preset view
+        setBandErrors([]);
+    };
+
+    const startNewUseCase = () => {
+        // Unlock editing and remove preset meta; keep current values so the user can tweak them
+        setPresetLocked(false);
+        setPresetName(null);
+        setPresetBlurb(null);
     };
 
     const addBand = () => {
@@ -215,6 +235,7 @@ export default function SubmitTest() {
                 <Typography variant="h5">Submit Workflow Test</Typography>
                 
                 {error && <Alert severity="error">{error}</Alert>}
+                {loading && <Alert severity="info">Submitting workflows, please wait…</Alert>}
                 {success && <Alert severity="success">{success}</Alert>}
                 
                 <TextField 
@@ -243,13 +264,41 @@ export default function SubmitTest() {
                     onChange={handleInputChange}
                     required 
                     fullWidth
-                    inputProps={{ min: 1 }}
+                    inputProps={{ min: 1, readOnly: formData.mode === 'fairness' && presetLocked }}
+                    InputProps={{
+                        readOnly: formData.mode === 'fairness' && presetLocked,
+                        endAdornment: formData.mode === 'fairness' && presetLocked ? (
+                            <InputAdornment position="end"><Lock fontSize="small" /></InputAdornment>
+                        ) : undefined
+                    }}
                     placeholder="e.g., 100"
                 />
 
                 {formData.mode === 'fairness' && (
                     <Box>
-                        <Typography variant="subtitle1" sx={{mb: 1}}>Fairness Bands</Typography>
+                        <Typography variant="subtitle1" sx={{mb: 1.5}}>Fairness Bands</Typography>
+                        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 1.5 }}>
+                            <Button
+                                variant={presetLocked ? 'contained' : 'outlined'}
+                                color="primary"
+                                onClick={applyAirlinePreset}
+                            >
+                                Airline Boarding Priority Queue
+                            </Button>
+                            <Button
+                                variant={!presetLocked ? 'contained' : 'outlined'}
+                                color="primary"
+                                onClick={startNewUseCase}
+                            >
+                                Modify
+                            </Button>
+                        </Box>
+                        {presetName && (
+                            <Alert severity="info" sx={{ mb: 1.5 }}>
+                                <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{presetName}</Typography>
+                                <Typography variant="body2">{presetBlurb}</Typography>
+                            </Alert>
+                        )}
                         <Stack spacing={1.5}>
                             {(formData.bands || []).map((band, idx) => (
                                 <Box key={idx} sx={{ display: 'flex', gap: 1 }}>
@@ -260,32 +309,51 @@ export default function SubmitTest() {
                                         error={!!bandErrors[idx]?.key}
                                         helperText={bandErrors[idx]?.key || ''}
                                         sx={{ flex: 2 }}
+                                        inputProps={{ readOnly: presetLocked }}
+                                        InputProps={{
+                                            readOnly: presetLocked,
+                                            endAdornment: presetLocked ? (
+                                                <InputAdornment position="end"><Lock fontSize="small" /></InputAdornment>
+                                            ) : undefined
+                                        }}
                                     />
                                     <TextField
                                         label="Weight"
                                         type="number"
                                         value={band.weight}
                                         onChange={(e) => updateBand(idx, 'weight', e.target.value)}
-                                        inputProps={{ min: 0 }}
+                                        inputProps={{ min: 0, readOnly: presetLocked }}
                                         error={!!bandErrors[idx]?.weight}
                                         helperText={bandErrors[idx]?.weight || ''}
                                         sx={{ width: 120 }}
+                                        InputProps={{
+                                            readOnly: presetLocked,
+                                            endAdornment: presetLocked ? (
+                                                <InputAdornment position="end"><Lock fontSize="small" /></InputAdornment>
+                                            ) : undefined
+                                        }}
                                     />
                                     <TextField
                                         label="Workflows"
                                         type="number"
                                         value={band.count ?? ''}
                                         onChange={(e) => updateBand(idx, 'count', e.target.value)}
-                                        inputProps={{ min: 0 }}
+                                        inputProps={{ min: 0, readOnly: presetLocked }}
+                                        InputProps={{
+                                            readOnly: presetLocked,
+                                            endAdornment: presetLocked ? (
+                                                <InputAdornment position="end"><Lock fontSize="small" /></InputAdornment>
+                                            ) : undefined
+                                        }}
                                         sx={{ width: 120 }}
                                     />
-                                    <IconButton aria-label="remove band" onClick={() => removeBand(idx)}>
+                                    <IconButton aria-label="remove band" onClick={() => removeBand(idx)} disabled={presetLocked}>
                                         <Delete />
                                     </IconButton>
                                 </Box>
                             ))}
                             <Box>
-                                <Button startIcon={<Add />} variant="outlined" onClick={addBand}>Add Band</Button>
+                                <Button startIcon={<Add />} variant="outlined" onClick={addBand} disabled={presetLocked}>Add Band</Button>
                             </Box>
                         </Stack>
                     </Box>

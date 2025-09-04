@@ -62,6 +62,23 @@ export default function FairnessResultsPage({ runPrefix }: FairnessResultsPagePr
         eventStream: Array<{ id: string; ts: number }>; // for tick strip rendering
     }>({ chartData: [], etaSecondsById: {}, rateById: {}, labelsById: {}, idsInOrder: [], progressPctById: {}, chartMaxX: 60, binnedStream: [], eventStream: [] });
 
+    // Original band order from the submit form (if available via localStorage)
+    const originalOrderRef = useRef<string[] | null>(null);
+    const getOriginalOrder = () => {
+        if (originalOrderRef.current != null) return originalOrderRef.current;
+        try {
+            const raw = localStorage.getItem('demo-bands');
+            if (raw) {
+                const arr = JSON.parse(raw) as Array<{ key: string }>;
+                if (Array.isArray(arr)) {
+                    originalOrderRef.current = arr.map(b => b.key);
+                }
+            }
+        } catch {}
+        if (!originalOrderRef.current) originalOrderRef.current = [];
+        return originalOrderRef.current;
+    };
+
     const checkAllWorkflowsComplete = (results: FairnessTestResults) => {
         return results.workflowsByFairness.every(workflow => 
             calculateOverallProgress(workflow) === 100
@@ -117,41 +134,29 @@ export default function FairnessResultsPage({ runPrefix }: FairnessResultsPagePr
     };
 
     const getKeyColor = (key: string, index?: number) => {
-        // Explicit colors for known demo bands
-        const reserved: Record<string, string> = {
-            'vip-class': '#e53935', // nice red
-            'scrubs': '#fbc02d', // yellow/amber
-            'first-class': '#6a1b9a', // purple
-            'business-class': '#1976d2', // blue
-            'economy-class': '#2e7d32', // green
-        };
-        if (reserved[key]) return reserved[key];
-
-        // If a 6th band exists in the ordering, use grey for it
-        if (index === 5) return '#9e9e9e'; // grey 500
-
-        // Interesting palette for additional bands (avoid duplicates with reserved)
-        const extra = [
-            '#ff6f00', // deep orange
-            '#00acc1', // cyan
-            '#d81b60', // pink
-            '#8e24aa', // violet
-            '#5e35b1', // indigo
-            '#00897b', // teal
-            '#c0ca33', // lime
-            '#ef6c00', // orange
-            '#455a64', // blue grey
+        // Order-based palette: assign colors by position; 8+ -> grey
+        const orderedPalette = [
+            '#e53935', // 1: red
+            '#6a1b9a', // 2: purple
+            '#1976d2', // 3: blue
+            '#2e7d32', // 4: green
+            '#fbc02d', // 5: yellow/amber (so a 5th band is yellow)
+            '#ef6c00', // 6: orange
+            '#00897b', // 7: teal
         ];
-        // Deterministic pick based on key hash
+        if (typeof index === 'number' && index >= 0) {
+            return index < orderedPalette.length ? orderedPalette[index] : '#9e9e9e';
+        }
+        // Fallback when no index provided: hash key into palette for stability
         let h = 0;
         for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;
-        return extra[h % extra.length];
+        return orderedPalette[h % orderedPalette.length];
     };
 
     const avg = (arr: number[]) => (arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0);
 
     const bandId = (wf: WorkflowByFairness) => `${wf.fairnessKey}|${wf.fairnessWeight}`;
-    const bandLabel = (wf: WorkflowByFairness) => `${wf.fairnessKey} (w=${wf.fairnessWeight}) · ${wf.numberOfWorkflows} workflows`;
+    const bandLabel = (wf: WorkflowByFairness) => `${wf.fairnessKey} (weight=${wf.fairnessWeight}) · ${wf.numberOfWorkflows} workflows`;
     const totalStepsFor = (wf: WorkflowByFairness) => wf.numberOfWorkflows * 5;
     const completedStepsFor = (wf: WorkflowByFairness) => wf.activities.reduce((s, a) => s + a.numberCompleted, 0);
 
@@ -165,9 +170,21 @@ export default function FairnessResultsPage({ runPrefix }: FairnessResultsPagePr
         const rateById: Record<string, number> = {};
         const labelsById: Record<string, string> = {};
         const progressPctById: Record<string, number> = {};
-        const idsInOrder: string[] = [...results.workflowsByFairness]
-            .sort((a, b) => b.fairnessWeight - a.fairnessWeight || a.fairnessKey.localeCompare(b.fairnessKey))
-            .map(b => bandId(b));
+        // Determine display order: prefer the original input list order if available
+        const order = getOriginalOrder();
+        const orderIndex = (key: string) => {
+            const i = order.indexOf(key);
+            return i === -1 ? Number.MAX_SAFE_INTEGER : i;
+        };
+        const idsInOrder: string[] = results.workflowsByFairness
+            .map((b, i) => ({ b, i }))
+            .sort((x, y) => {
+                const ax = orderIndex(x.b.fairnessKey);
+                const ay = orderIndex(y.b.fairnessKey);
+                if (ax !== ay) return ax - ay; // original order first
+                return x.i - y.i; // stable fallback to server order
+            })
+            .map(({ b }) => bandId(b));
 
         // Update per-band rates, ETAs, progress, and event stream
         for (const wf of results.workflowsByFairness) {
@@ -373,20 +390,23 @@ export default function FairnessResultsPage({ runPrefix }: FairnessResultsPagePr
                         {/* Centered, prominent ETA/progress chips */}
                         <Box sx={{ mt: 2 }}>
                             <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1.5, flexWrap: 'wrap' }}>
-                                {summary.idsInOrder
-                                  .map((id, idx) => {
+                                {summary.idsInOrder.map((id, idx) => {
                                     const key = id.split('|')[0];
                                     const label = summary.labelsById[id] || key;
-                                    const eta = summary.etaSecondsById[id];
                                     const pct = summary.progressPctById[id] || 0;
                                     const orderBadge = `${idx + 1}.`;
-                                    const suffix = finishTimesRef.current[id] != null
-                                        ? ` · ~${Math.max(0, Math.round(finishTimesRef.current[id] as number))}s`
-                                        : ` · ~${eta != null ? Math.max(0, Math.round(eta)) : '—'}s`;
+                                    const finishedAt = finishTimesRef.current[id];
+                                    const timeNode = finishedAt != null ? (
+                                        <Box component="span" sx={{ color: 'success.main' }}>{` · ${Math.max(0, Math.round(finishedAt as number))}s`}</Box>
+                                    ) : null; // no ETA for in-progress
                                     return (
                                         <Chip
                                             key={`eta-${id}`}
-                                            label={`${orderBadge} ${label} ${Math.round(pct)}%${suffix}`}
+                                            label={
+                                                <Box component="span">
+                                                    {orderBadge} {label} {Math.round(pct)}%{timeNode}
+                                                </Box>
+                                            }
                                             sx={{
                                                 backgroundColor: '#f5f5f5',
                                                 px: 1.5,
@@ -434,7 +454,7 @@ export default function FairnessResultsPage({ runPrefix }: FairnessResultsPagePr
                                 <CardContent>
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
                                         <Chip
-                                            label={`${workflow.fairnessKey} (w=${workflow.fairnessWeight})`}
+                                            label={`${workflow.fairnessKey} (weight=${workflow.fairnessWeight})`}
                                             sx={() => {
                                                 const idx = summary.idsInOrder.indexOf(bandId(workflow));
                                                 const bg = getKeyColor(workflow.fairnessKey, idx);

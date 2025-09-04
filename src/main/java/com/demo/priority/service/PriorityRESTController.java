@@ -104,7 +104,8 @@ public class PriorityRESTController {
             if (hasCounts) {
                 totalWF = bands.stream().mapToInt(b -> b.getCount() == null ? 0 : b.getCount()).sum();
             }
-            startTime = this.getTargetWFStartTime(totalWF);
+            // Use a much smaller, fairness-specific start delay
+            startTime = this.getTargetWFStartTimeFairness(totalWF);
 
             if (hasCounts) {
                 int workflowNum = 1;
@@ -193,13 +194,28 @@ public class PriorityRESTController {
 
     private Duration getStartDelay(LocalDateTime pTargetStart)
     {
-        return Duration.between(LocalDateTime.now(),pTargetStart);
+        Duration d = Duration.between(LocalDateTime.now(), pTargetStart);
+        // Guard against negative durations if target time has already passed while enqueuing many workflows
+        return d.isNegative() ? Duration.ZERO : d;
     }// End GetStartDelay
     private LocalDateTime getTargetWFStartTime(int pNumWFInstancesToStart)
     {
         LocalDateTime currentTime = LocalDateTime.now();
-        double secsToStartAll = (pNumWFInstancesToStart * 0.1) + 5; // Assuming 100ms to start each WF instance. + 5 secs to allow a bit of flex
+        // Lowered: assume ~50ms to start each WF instance + 5s buffer.
+        // Examples: 100 WFs -> ~10s, 300 WFs -> ~20s, 570 WFs -> ~33.5s
+        double secsToStartAll = (pNumWFInstancesToStart * 0.05) + 5;
         return currentTime.plusSeconds((long)secsToStartAll);
+    }
+
+    private LocalDateTime getTargetWFStartTimeFairness(int pNumWFInstancesToStart)
+    {
+        LocalDateTime currentTime = LocalDateTime.now();
+        // Fairness runs: 7s floor, 30s cap. Scale so 200 -> ~15s and 300 -> ~30s.
+        // Linear core: ceil(0.15 * N - 15), then clamp to [7, 30].
+        // Examples: 100 -> 7s (floor), 200 -> 15s, 300 -> 30s, 440 -> 30s (cap).
+        long scaled = (long) Math.ceil((0.15 * pNumWFInstancesToStart) - 15.0);
+        long secsToStartAll = Math.min(30L, Math.max(7L, scaled));
+        return currentTime.plusSeconds(secsToStartAll);
     }
 
     private String getWorkflowTaskQueueName()

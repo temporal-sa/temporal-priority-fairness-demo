@@ -54,8 +54,23 @@ $ temporal --address localhost:7233 --namespace default operator search-attribut
 ```
 
 Or use the helper scripts in this repo:
-- Local/dev server: `./createlocalsearchattributes.sh` (uses `temporal` CLI; defaults to `localhost:7233`, `default` namespace)
-- Temporal Cloud: `TEMPORAL_NAMESPACE=your-namespace ./createcloudsearchattributes.sh` (uses `tcld` CLI)
+- Local/dev server: `./createlocalsearchattributes.sh`
+  - Uses `temporal` CLI; defaults to `TEMPORAL_ADDRESS=localhost:7233`, `TEMPORAL_NAMESPACE=default`.
+  - You can override via env vars, for example:
+    - `TEMPORAL_ADDRESS=localhost:7234 TEMPORAL_NAMESPACE=my-ns ./createlocalsearchattributes.sh`.
+- Temporal Cloud: `./createcloudsearchattributes.sh`
+  - Uses `tcld` CLI against your Temporal Cloud namespace.
+  - Requires `TEMPORAL_NAMESPACE` to be set, e.g. `export TEMPORAL_NAMESPACE=my-cloud-namespace`.
+  - Authentication options:
+    - Logged in via `tcld login` (recommended).
+    - Or set an API key: the script will automatically use `TEMPORAL_CLOUD_API_KEY` if set, else `TCLD_API_KEY`.
+  - Examples:
+    - Using current `tcld` login session:
+      - `export TEMPORAL_NAMESPACE=my-cloud-namespace && ./createcloudsearchattributes.sh`
+    - Using an API key directly:
+      - `TEMPORAL_NAMESPACE=my-cloud-namespace TEMPORAL_CLOUD_API_KEY=tsk_abc123 ./createcloudsearchattributes.sh`
+      - or `TEMPORAL_NAMESPACE=my-cloud-namespace TCLD_API_KEY=tsk_abc123 ./createcloudsearchattributes.sh`
+
 
 # Run the application
 ## Run the UI
