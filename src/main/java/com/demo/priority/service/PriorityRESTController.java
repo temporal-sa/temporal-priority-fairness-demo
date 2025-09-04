@@ -108,35 +108,42 @@ public class PriorityRESTController {
             startTime = this.getTargetWFStartTimeFairness(totalWF);
 
             if (hasCounts) {
-                int workflowNum = 1;
+                // Build a flat list of band entries according to their counts, then shuffle to randomize submission order.
+                java.util.List<Band> submissionOrder = new java.util.ArrayList<>();
                 for (Band band : bands) {
                     int count = band.getCount() == null ? 0 : band.getCount();
                     for (int i = 0; i < count; i++) {
-                        logger.debug("Starting fairness workflow {}-{} [{}:{}]", wfConfig.getWorkflowIdPrefix(), workflowNum, band.getKey(), band.getWeight());
-
-                        FairnessWorkflowData inputParameters = new FairnessWorkflowData();
-                        inputParameters.setFairnessKey(band.getKey());
-                        inputParameters.setFairnessWeight(band.getWeight());
-
-                        SearchAttributes searchAttribs = SearchAttributes.newBuilder()
-                                .set(SearchAttributeKey.forKeyword("FairnessKey"), band.getKey())
-                                .set(SearchAttributeKey.forLong("FairnessWeight"), (long) band.getWeight())
-                                .set(SearchAttributeKey.forLong("ActivitiesCompleted"), (long)0)
-                                .build();
-
-                        FairnessWorkflow workflow = client.newWorkflowStub(
-                                FairnessWorkflow.class,
-                                WorkflowOptions.newBuilder()
-                                        .setTaskQueue("fairness-queue")
-                                        .setWorkflowId(wfConfig.getWorkflowIdPrefix() + "-" + workflowNum)
-                                        .setStartDelay(this.getStartDelay(startTime))
-                                        .setTypedSearchAttributes(searchAttribs)
-                                        .build()
-                        );
-
-                        WorkflowExecution wfExec = WorkflowClient.start(workflow::fairnessWorkflow, inputParameters);
-                        workflowNum++;
+                        submissionOrder.add(band);
                     }
+                }
+                java.util.Collections.shuffle(submissionOrder);
+
+                int workflowNum = 1;
+                for (Band band : submissionOrder) {
+                    logger.debug("Starting fairness workflow {}-{} [{}:{}]", wfConfig.getWorkflowIdPrefix(), workflowNum, band.getKey(), band.getWeight());
+
+                    FairnessWorkflowData inputParameters = new FairnessWorkflowData();
+                    inputParameters.setFairnessKey(band.getKey());
+                    inputParameters.setFairnessWeight(band.getWeight());
+
+                    SearchAttributes searchAttribs = SearchAttributes.newBuilder()
+                            .set(SearchAttributeKey.forKeyword("FairnessKey"), band.getKey())
+                            .set(SearchAttributeKey.forLong("FairnessWeight"), (long) band.getWeight())
+                            .set(SearchAttributeKey.forLong("ActivitiesCompleted"), (long)0)
+                            .build();
+
+                    FairnessWorkflow workflow = client.newWorkflowStub(
+                            FairnessWorkflow.class,
+                            WorkflowOptions.newBuilder()
+                                    .setTaskQueue("fairness-queue")
+                                    .setWorkflowId(wfConfig.getWorkflowIdPrefix() + "-" + workflowNum)
+                                    .setStartDelay(this.getStartDelay(startTime))
+                                    .setTypedSearchAttributes(searchAttribs)
+                                    .build()
+                    );
+
+                    WorkflowExecution wfExec = WorkflowClient.start(workflow::fairnessWorkflow, inputParameters);
+                    workflowNum++;
                 }
             } else {
                 for (int workflowNum = 1; workflowNum <  wfConfig.getNumberOfWorkflows() + 1; workflowNum++){

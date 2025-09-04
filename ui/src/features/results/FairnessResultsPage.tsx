@@ -368,7 +368,7 @@ export default function FairnessResultsPage({ runPrefix }: FairnessResultsPagePr
                                                     />
                                                 );
                                             })}
-                                            {/* Current value dots and ETA/Finish reference lines */}
+                                            {/* Current value dots and finish reference lines (ETA removed) */}
                                             {summary.idsInOrder.map((id, idx) => {
                                                 const key = id.split('|')[0];
                                                 const color = getKeyColor(key, idx);
@@ -376,7 +376,7 @@ export default function FairnessResultsPage({ runPrefix }: FairnessResultsPagePr
                                                 const curT = lastPoint ? Number(lastPoint.t) : 0;
                                                 const curY = lastPoint ? Number(lastPoint[id] || 0) : 0;
                                                 const finishedAt = (finishTimesRef.current[id]);
-                                                const eta = summary.etaSecondsById[id];
+                                                // ETA intentionally not shown in chart per simplification
                                                 return (
                                                     <React.Fragment key={`refs-${id}`}>
                                                         {lastPoint && (
@@ -384,8 +384,6 @@ export default function FairnessResultsPage({ runPrefix }: FairnessResultsPagePr
                                                         )}
                                                         {finishedAt != null ? (
                                                             <ReferenceLine x={finishedAt} stroke={color} strokeDasharray="4 4" label={{ value: `Finished ${Math.round(finishedAt)}s`, position: 'top', fill: '#666', fontSize: 12 }} />
-                                                        ) : eta != null ? (
-                                                            <ReferenceLine x={curT + eta} stroke={color} strokeDasharray="4 4" label={{ value: `ETA ~${Math.max(0, Math.round(eta))}s`, position: 'top', fill: '#666', fontSize: 12 }} />
                                                         ) : null}
                                                     </React.Fragment>
                                                 );
