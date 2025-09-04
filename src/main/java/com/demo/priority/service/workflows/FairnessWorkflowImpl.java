@@ -18,17 +18,16 @@ public class FairnessWorkflowImpl implements FairnessWorkflow {
     @Override
     @WorkflowMethod
     public String fairnessWorkflow(FairnessWorkflowData data) {
-        FairnessActivity activity = Workflow.newActivityStub(
-                FairnessActivity.class,
-                ActivityOptions.newBuilder()
-                        .setStartToCloseTimeout(Duration.ofSeconds(5))
-                        .setTaskQueue("fairness-queue")
-                        .setPriority(Priority.newBuilder()
-                                .setFairnessKey(data.getFairnessKey())
-                                .setFairnessWeight((float) data.getFairnessWeight())
-                                .build())
-                        .build()
-        );
+        ActivityOptions.Builder opts = ActivityOptions.newBuilder()
+                .setStartToCloseTimeout(Duration.ofSeconds(5))
+                .setTaskQueue("fairness-queue");
+        if (!data.isDisableFairness()) {
+            opts.setPriority(Priority.newBuilder()
+                    .setFairnessKey(data.getFairnessKey())
+                    .setFairnessWeight((float) data.getFairnessWeight())
+                    .build());
+        }
+        FairnessActivity activity = Workflow.newActivityStub(FairnessActivity.class, opts.build());
 
         FairnessActivityData activityData = new FairnessActivityData();
         activityData.setFairnessKey(data.getFairnessKey());

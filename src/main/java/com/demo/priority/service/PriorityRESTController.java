@@ -107,6 +107,7 @@ public class PriorityRESTController {
             // Use a much smaller, fairness-specific start delay
             startTime = this.getTargetWFStartTimeFairness(totalWF);
 
+            boolean disableFairness = wfConfig.isDisableFairness();
             if (hasCounts) {
                 // Build a flat list of band entries according to their counts, then shuffle to randomize submission order.
                 java.util.List<Band> submissionOrder = new java.util.ArrayList<>();
@@ -125,10 +126,11 @@ public class PriorityRESTController {
                     FairnessWorkflowData inputParameters = new FairnessWorkflowData();
                     inputParameters.setFairnessKey(band.getKey());
                     inputParameters.setFairnessWeight(band.getWeight());
+                    inputParameters.setDisableFairness(disableFairness);
 
                     SearchAttributes searchAttribs = SearchAttributes.newBuilder()
                             .set(SearchAttributeKey.forKeyword("FairnessKey"), band.getKey())
-                            .set(SearchAttributeKey.forLong("FairnessWeight"), (long) band.getWeight())
+                            .set(SearchAttributeKey.forLong("FairnessWeight"), disableFairness ? 0L : (long) band.getWeight())
                             .set(SearchAttributeKey.forLong("ActivitiesCompleted"), (long)0)
                             .build();
 
@@ -153,10 +155,11 @@ public class PriorityRESTController {
                     FairnessWorkflowData inputParameters = new FairnessWorkflowData();
                     inputParameters.setFairnessKey(band.getKey());
                     inputParameters.setFairnessWeight(band.getWeight());
+                    inputParameters.setDisableFairness(disableFairness);
 
                     SearchAttributes searchAttribs = SearchAttributes.newBuilder()
                             .set(SearchAttributeKey.forKeyword("FairnessKey"), band.getKey())
-                            .set(SearchAttributeKey.forLong("FairnessWeight"), (long) band.getWeight())
+                            .set(SearchAttributeKey.forLong("FairnessWeight"), disableFairness ? 0L : (long) band.getWeight())
                             .set(SearchAttributeKey.forLong("ActivitiesCompleted"), (long)0)
                             .build();
 

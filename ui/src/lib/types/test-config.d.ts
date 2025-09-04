@@ -11,6 +11,7 @@ export type WorkflowTestConfig = {
     numberOfWorkflows: number;
     mode?: Mode;
     bands?: Band[];
+    disableFairness?: boolean; // when true, do not set fairness priority
 }
 
 export type Activity = {

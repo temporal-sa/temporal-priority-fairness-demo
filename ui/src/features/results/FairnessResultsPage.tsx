@@ -156,7 +156,11 @@ export default function FairnessResultsPage({ runPrefix }: FairnessResultsPagePr
     const avg = (arr: number[]) => (arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0);
 
     const bandId = (wf: WorkflowByFairness) => `${wf.fairnessKey}|${wf.fairnessWeight}`;
-    const bandLabel = (wf: WorkflowByFairness) => `${wf.fairnessKey} (weight=${wf.fairnessWeight}) · ${wf.numberOfWorkflows} workflows`;
+    const bandLabel = (wf: WorkflowByFairness) => {
+        const disabled = (testResults?.workflowsByFairness || []).every(b => (b.fairnessWeight || 0) === 0);
+        const wLabel = disabled ? 'n/a' : String(wf.fairnessWeight);
+        return `${wf.fairnessKey} (weight=${wLabel}) · ${wf.numberOfWorkflows} workflows`;
+    };
     const totalStepsFor = (wf: WorkflowByFairness) => wf.numberOfWorkflows * 5;
     const completedStepsFor = (wf: WorkflowByFairness) => wf.activities.reduce((s, a) => s + a.numberCompleted, 0);
 
@@ -304,7 +308,12 @@ export default function FairnessResultsPage({ runPrefix }: FairnessResultsPagePr
                     <Typography variant="h4" component="h1">
                         Fairness Results: {runPrefix}
                     </Typography>
-                    <Chip label={`Mode: Fairness`} size="small" sx={{ mt: 0.5 }} />
+                    <Box sx={{ display: 'flex', gap: 1, mt: 0.5, flexWrap: 'wrap' }}>
+                        <Chip label={`Mode: Fairness`} size="small" />
+                        {(testResults?.workflowsByFairness || []).every(b => (b.fairnessWeight || 0) === 0)
+                          ? <Chip label="Fairness disabled" color="warning" size="small" />
+                          : <Chip label="Fairness enabled" color="success" size="small" />}
+                    </Box>
                     {testResults && (
                         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
                             {testResults.totalWorkflowsInTest} workflows in test
@@ -416,7 +425,7 @@ export default function FairnessResultsPage({ runPrefix }: FairnessResultsPagePr
                                             {/* Header and overall progress only */}
                                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
                                                 <Chip
-                                                    label={`${workflow.fairnessKey} (weight=${workflow.fairnessWeight})`}
+                                                    label={`${workflow.fairnessKey} (weight=${(testResults?.workflowsByFairness || []).every(b => (b.fairnessWeight || 0) === 0) ? 'n/a' : workflow.fairnessWeight})`}
                                                     sx={() => {
                                                         const idx = summary.idsInOrder.indexOf(bandId(workflow));
                                                         const bg = getKeyColor(workflow.fairnessKey, idx);

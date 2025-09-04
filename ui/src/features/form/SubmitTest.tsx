@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Box, Button, TextField, Paper, Typography, Alert, CircularProgress, InputAdornment } from "@mui/material";
+import { Box, Button, TextField, Paper, Typography, Alert, CircularProgress, InputAdornment, Checkbox } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import type { WorkflowTestConfig, Mode, Band } from "../../lib/types/test-config";
@@ -26,13 +26,14 @@ export default function SubmitTest() {
         workflowIdPrefix: generateDefaultPrefix(),
         numberOfWorkflows: 100, // default 100 for Priority
         mode: 'priority',
+        disableFairness: false,
         // Defaults for Fairness mode
         bands: [
-            { key: 'vip-class', weight: 30, count: 10 },
-            { key: 'first-class', weight: 10, count: 30 },
-            { key: 'business-class', weight: 5,  count: 60 },
-            { key: 'economy-class', weight: 2,  count: 100 },
-            { key: 'standby-list', weight: 1,  count: 100 },
+            { key: 'vip',            weight: 20, count: 10 },
+            { key: 'first-class',    weight: 10, count: 20 },
+            { key: 'business-class', weight: 5,  count: 40 },
+            { key: 'economy-class',  weight: 2,  count: 75 },
+            { key: 'standby-list',   weight: 1,  count: 75 },
         ]
     });
     const [bandErrors, setBandErrors] = useState<Array<{ key?: string; weight?: string }>>([]);
@@ -73,7 +74,7 @@ export default function SubmitTest() {
             return;
         }
         // Switching to Priority: clear preset UI and restore defaults
-        setFormData(prev => ({ ...prev, mode: 'priority', numberOfWorkflows: 100 }));
+        setFormData(prev => ({ ...prev, mode: 'priority', numberOfWorkflows: 100, disableFairness: false }));
         setPresetLocked(false);
         setPresetName(null);
         setPresetBlurb(null);
@@ -96,11 +97,11 @@ export default function SubmitTest() {
 
     const applyAirlinePreset = () => {
         const airlineBands: Band[] = [
-            { key: 'vip',            weight: 20, count: 20 },
-            { key: 'first-class',    weight: 10, count: 40 },
-            { key: 'business-class', weight: 5,  count: 80 },
-            { key: 'economy-class',  weight: 2,  count: 150 },
-            { key: 'standby-list',   weight: 1,  count: 150 },
+            { key: 'vip',            weight: 20, count: 10 },
+            { key: 'first-class',    weight: 10, count: 20 },
+            { key: 'business-class', weight: 5,  count: 40 },
+            { key: 'economy-class',  weight: 2,  count: 75 },
+            { key: 'standby-list',   weight: 1,  count: 75 },
         ];
         const total = airlineBands.reduce((s, b) => s + (b.count || 0), 0);
         setFormData(prev => ({
@@ -204,7 +205,7 @@ export default function SubmitTest() {
                 numberOfWorkflows: formData.numberOfWorkflows,
                 mode: formData.mode,
                 // Only send bands in fairness mode
-                ...(formData.mode === 'fairness' ? { bands: formData.bands } : {})
+                ...(formData.mode === 'fairness' ? { bands: formData.bands, disableFairness: formData.disableFairness } : {})
             };
             if (payload.mode === 'fairness') {
                 const valid = validateAndSetBands();
@@ -356,6 +357,18 @@ export default function SubmitTest() {
                                 <Button startIcon={<Add />} variant="outlined" onClick={addBand} disabled={presetLocked}>Add Band</Button>
                             </Box>
                         </Stack>
+                        {/* Disable fairness toggle for this run */}
+                        <Box sx={{ mt: 2 }}>
+                            <FormControlLabel
+                                control={
+                                    <Checkbox
+                                        checked={!!formData.disableFairness}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, disableFairness: e.target.checked }))}
+                                    />
+                                }
+                                label="Disable fairness for this run"
+                            />
+                        </Box>
                     </Box>
                 )}
                 
