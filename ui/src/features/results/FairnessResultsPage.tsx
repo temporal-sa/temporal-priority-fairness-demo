@@ -326,196 +326,123 @@ export default function FairnessResultsPage({ runPrefix }: FairnessResultsPagePr
                 </Box>
             </Box>
 
-            {/* Fairness summary visuals */}
-            {summary.chartData.length > 0 && (
-                <Card sx={{ mb: 3 }}>
-                    <CardContent>
-                        <Typography variant="h6" sx={{ mb: 2 }}>Cumulative Progress by Band</Typography>
-                        <Box sx={{ width: '100%', height: 260 }}>
-                            <ResponsiveContainer>
-                                <LineChart data={summary.chartData} margin={{ left: 8, right: 16, top: 8, bottom: 8 }}>
-                                    <CartesianGrid strokeDasharray="3 3" />
-                                    <XAxis
-                                        dataKey="t"
-                                        type="number"
-                                        domain={[0, Math.ceil(summary.chartMaxX)]}
-                                        tickFormatter={(s) => `${Math.round(Number(s))}s`}
-                                    />
-                                    <YAxis domain={[0, 100]} ticks={[0,10,20,30,40,50,60,70,80,90,100]} tickFormatter={(v) => `${v}%`} />
-                                    <RechartsTooltip formatter={(v: any) => `${(Number(v) || 0).toFixed(1)}%`} labelFormatter={(l) => `${Math.round(Number(l))}s`} />
-                                    <Legend />
-                                    {summary.idsInOrder.map((id, idx) => {
-                                        const key = id.split('|')[0];
-                                        const name = summary.labelsById[id] || key;
-                                        return (
-                                            <Line
-                                                key={id}
-                                                type="linear"
-                                                dataKey={id}
-                                                stroke={getKeyColor(key, idx)}
-                                                dot={false}
-                                                strokeWidth={2}
-                                                name={name}
-                                                isAnimationActive={false}
-                                            />
-                                        );
-                                    })}
-                                    {/* Current value dots and ETA/Finish reference lines */}
-                                    {summary.idsInOrder.map((id, idx) => {
-                                        const key = id.split('|')[0];
-                                        const color = getKeyColor(key, idx);
-                                        const lastPoint = summary.chartData[summary.chartData.length - 1];
-                                        const curT = lastPoint ? Number(lastPoint.t) : 0;
-                                        const curY = lastPoint ? Number(lastPoint[id] || 0) : 0;
-                                        const finishedAt = (finishTimesRef.current[id]);
-                                        const eta = summary.etaSecondsById[id];
-                                        return (
-                                            <React.Fragment key={`refs-${id}`}>
-                                                {lastPoint && (
-                                                    <ReferenceDot x={curT} y={curY} r={3} fill={color} stroke={color} label={{ value: `${curY.toFixed(0)}%`, position: 'right', fill: '#666', fontSize: 12 }} />
-                                                )}
-                                                {finishedAt != null ? (
-                                                    <ReferenceLine x={finishedAt} stroke={color} strokeDasharray="4 4" label={{ value: `Finished ${Math.round(finishedAt)}s`, position: 'top', fill: '#666', fontSize: 12 }} />
-                                                ) : eta != null ? (
-                                                    <ReferenceLine x={curT + eta} stroke={color} strokeDasharray="4 4" label={{ value: `ETA ~${Math.max(0, Math.round(eta))}s`, position: 'top', fill: '#666', fontSize: 12 }} />
-                                                ) : null}
-                                            </React.Fragment>
-                                        );
-                                    })}
-                                </LineChart>
-                            </ResponsiveContainer>
-                        </Box>
-
-                        {/* Event stream: last ~100 activity completions */}
-                        {/* Centered, prominent ETA/progress chips */}
-                        <Box sx={{ mt: 2 }}>
-                            <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1.5, flexWrap: 'wrap' }}>
-                                {summary.idsInOrder.map((id, idx) => {
-                                    const key = id.split('|')[0];
-                                    const label = summary.labelsById[id] || key;
-                                    const pct = summary.progressPctById[id] || 0;
-                                    const orderBadge = `${idx + 1}.`;
-                                    const finishedAt = finishTimesRef.current[id];
-                                    const timeNode = finishedAt != null ? (
-                                        <Box component="span" sx={{ color: 'success.main' }}>{` · ${Math.max(0, Math.round(finishedAt as number))}s`}</Box>
-                                    ) : null; // no ETA for in-progress
-                                    return (
-                                        <Chip
-                                            key={`eta-${id}`}
-                                            label={
-                                                <Box component="span">
-                                                    {orderBadge} {label} {Math.round(pct)}%{timeNode}
-                                                </Box>
-                                            }
-                                            sx={{
-                                                backgroundColor: '#f5f5f5',
-                                                px: 1.5,
-                                                py: 1,
-                                                '& .MuiChip-label': { fontSize: '1rem', fontWeight: 600 }
-                                            }}
-                                            icon={
-                                                <Box sx={{ display: 'flex', alignItems: 'center', pl: 0.5 }}>
-                                                    <CircularProgress
-                                                        variant="determinate"
-                                                        value={Math.min(100, Math.max(0, pct))}
-                                                        size={24}
-                                                        sx={{ color: getKeyColor(key, idx) }}
-                                                    />
-                                                </Box>
-                                            }
-                                        />
-                                    );
-                                })}
-                            </Box>
-                        </Box>
-                    </CardContent>
-                </Card>
-            )}
-
-            {loading && !testResults && (
-                <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-                    <CircularProgress />
-                </Box>
-            )}
-
             {error && (
                 <Alert severity="error" sx={{ mb: 3 }}>
                     {error}
                 </Alert>
             )}
 
-            {testResults && (
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                    {[...testResults.workflowsByFairness]
-                      .sort((a, b) => b.fairnessWeight - a.fairnessWeight || a.fairnessKey.localeCompare(b.fairnessKey))
-                      .map((workflow: WorkflowByFairness) => (
-                        <Box key={`${workflow.fairnessKey}-${workflow.fairnessWeight}`}>
-                            <Card>
-                                <CardContent>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                                        <Chip
-                                            label={`${workflow.fairnessKey} (weight=${workflow.fairnessWeight})`}
-                                            sx={() => {
-                                                const idx = summary.idsInOrder.indexOf(bandId(workflow));
-                                                const bg = getKeyColor(workflow.fairnessKey, idx);
-                                                return {
-                                                    backgroundColor: bg,
-                                                    color: textColorForBg(bg),
-                                                    fontWeight: 'bold'
-                                                };
-                                            }}
-                                        />
-                                        <Typography variant="body2" color="text.secondary">
-                                            {workflow.numberOfWorkflows} workflows
-                                        </Typography>
-                                        <Typography variant="body2" color="text.secondary">
-                                            {(summary.progressPctById[bandId(workflow)] ?? (completedStepsFor(workflow) / Math.max(1, totalStepsFor(workflow)) * 100)).toFixed(1)}% complete
-                                        </Typography>
-                                        {/* Throughput hint */}
-                                        <Typography variant="body2" color="text.secondary">
-                                            ~{(summary.rateById[bandId(workflow)] ?? 0).toFixed(2)} steps/s
-                                        </Typography>
-                                        <LinearProgress
-                                            variant="determinate"
-                                            value={summary.progressPctById[bandId(workflow)] ?? (completedStepsFor(workflow) / Math.max(1, totalStepsFor(workflow)) * 100)}
-                                            color={getProgressColor(summary.progressPctById[bandId(workflow)] ?? (completedStepsFor(workflow) / Math.max(1, totalStepsFor(workflow)) * 100))}
-                                            sx={{ height: 8, borderRadius: 4, flex: 1, ml: 2 }}
-                                        />
-                                    </Box>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1.1fr 1fr' }, gap: 3, alignItems: 'start' }}>
+                <Box>
+                    {/* Fairness summary visuals (left column) */}
+                    {summary.chartData.length > 0 && (
+                        <Card sx={{ mb: 3, position: 'sticky', top: 8 }}>
+                            <CardContent>
+                                <Typography variant="h6" sx={{ mb: 2 }}>Cumulative Progress by Band</Typography>
+                                <Box sx={{ width: '100%', height: 360 }}>
+                                    <ResponsiveContainer>
+                                        <LineChart data={summary.chartData} margin={{ left: 8, right: 16, top: 8, bottom: 8 }}>
+                                            <CartesianGrid strokeDasharray="3 3" />
+                                            <XAxis
+                                                dataKey="t"
+                                                type="number"
+                                                domain={[0, Math.ceil(summary.chartMaxX)]}
+                                                tickFormatter={(s) => `${Math.round(Number(s))}s`}
+                                            />
+                                            <YAxis domain={[0, 100]} ticks={[0,10,20,30,40,50,60,70,80,90,100]} tickFormatter={(v) => `${v}%`} />
+                                            <RechartsTooltip formatter={(v: any) => `${(Number(v) || 0).toFixed(1)}%`} labelFormatter={(l) => `${Math.round(Number(l))}s`} />
+                                            <Legend />
+                                            {summary.idsInOrder.map((id, idx) => {
+                                                const key = id.split('|')[0];
+                                                const name = summary.labelsById[id] || key;
+                                                return (
+                                                    <Line
+                                                        key={id}
+                                                        type="linear"
+                                                        dataKey={id}
+                                                        stroke={getKeyColor(key, idx)}
+                                                        dot={false}
+                                                        strokeWidth={2}
+                                                        name={name}
+                                                        isAnimationActive={false}
+                                                    />
+                                                );
+                                            })}
+                                            {/* Current value dots and ETA/Finish reference lines */}
+                                            {summary.idsInOrder.map((id, idx) => {
+                                                const key = id.split('|')[0];
+                                                const color = getKeyColor(key, idx);
+                                                const lastPoint = summary.chartData[summary.chartData.length - 1];
+                                                const curT = lastPoint ? Number(lastPoint.t) : 0;
+                                                const curY = lastPoint ? Number(lastPoint[id] || 0) : 0;
+                                                const finishedAt = (finishTimesRef.current[id]);
+                                                const eta = summary.etaSecondsById[id];
+                                                return (
+                                                    <React.Fragment key={`refs-${id}`}>
+                                                        {lastPoint && (
+                                                            <ReferenceDot x={curT} y={curY} r={3} fill={color} stroke={color} label={{ value: `${curY.toFixed(0)}%`, position: 'right', fill: '#666', fontSize: 12 }} />
+                                                        )}
+                                                        {finishedAt != null ? (
+                                                            <ReferenceLine x={finishedAt} stroke={color} strokeDasharray="4 4" label={{ value: `Finished ${Math.round(finishedAt)}s`, position: 'top', fill: '#666', fontSize: 12 }} />
+                                                        ) : eta != null ? (
+                                                            <ReferenceLine x={curT + eta} stroke={color} strokeDasharray="4 4" label={{ value: `ETA ~${Math.max(0, Math.round(eta))}s`, position: 'top', fill: '#666', fontSize: 12 }} />
+                                                        ) : null}
+                                                    </React.Fragment>
+                                                );
+                                            })}
+                                        </LineChart>
+                                    </ResponsiveContainer>
+                                </Box>
 
-                                    <Box sx={{ display: 'flex', alignItems: 'stretch', gap: 2, flexWrap: 'wrap', pb: 1 }}>
-                                        <Typography variant="caption" color="text.secondary" sx={{ flex: '0 0 80px' }}>
-                                            Activities
-                                        </Typography>
-                                        {[1, 2, 3, 4, 5].map((activityNum) => {
-                                            const activity = workflow.activities.find(a => a.activityNumber === activityNum) || 
-                                                { activityNumber: activityNum, numberCompleted: 0 };
-                                            const progress = calculateActivityProgress(activity, workflow.numberOfWorkflows);
-                                            return (
-                                                <Box key={activityNum} sx={{ flex: '1 1 160px', minWidth: 160 }}>
-                                                    <Box sx={{ p: 2, border: '1px solid #e0e0e0', borderRadius: 1 }}>
-                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                                            <Typography variant="body2" fontWeight="medium" sx={{ minWidth: 'fit-content' }}>
-                                                                {activityNum}
-                                                            </Typography>
-                                                            <LinearProgress
-                                                                variant="determinate"
-                                                                value={progress}
-                                                                color={getProgressColor(progress)}
-                                                                sx={{ height: 6, borderRadius: 3, flex: 1, ml: 1 }}
-                                                            />
-                                                        </Box>
-                                                    </Box>
-                                                </Box>
-                                            );
-                                        })}
-                                    </Box>
-                                </CardContent>
-                            </Card>
+                                {/* Summary chips removed per simplification */}
+                            </CardContent>
+                        </Card>
+                    )}
+                    {loading && !testResults && (
+                        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+                            <CircularProgress />
                         </Box>
-                    ))}
+                    )}
                 </Box>
-            )}
+
+                <Box>
+                    {/* Activity step view (right column) */}
+                    {testResults && (
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                            {[...testResults.workflowsByFairness]
+                              .sort((a, b) => summary.idsInOrder.indexOf(bandId(a)) - summary.idsInOrder.indexOf(bandId(b)))
+                              .map((workflow: WorkflowByFairness) => (
+                                <Box key={`${workflow.fairnessKey}-${workflow.fairnessWeight}`}>
+                                    <Card>
+                                        <CardContent>
+                                            {/* Header and overall progress only */}
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
+                                                <Chip
+                                                    label={`${workflow.fairnessKey} (weight=${workflow.fairnessWeight})`}
+                                                    sx={() => {
+                                                        const idx = summary.idsInOrder.indexOf(bandId(workflow));
+                                                        const bg = getKeyColor(workflow.fairnessKey, idx);
+                                                        return { backgroundColor: bg, color: textColorForBg(bg), fontWeight: 'bold' };
+                                                    }}
+                                                />
+                                                <Typography variant="body2" color="text.secondary">{workflow.numberOfWorkflows} workflows</Typography>
+                                                <Typography variant="body2" color="text.secondary">{(summary.progressPctById[bandId(workflow)] ?? (completedStepsFor(workflow) / Math.max(1, totalStepsFor(workflow)) * 100)).toFixed(1)}% complete</Typography>
+                                                <Typography variant="body2" color="text.secondary">~{(summary.rateById[bandId(workflow)] ?? 0).toFixed(2)} steps/s</Typography>
+                                            </Box>
+                                            <LinearProgress
+                                                variant="determinate"
+                                                value={summary.progressPctById[bandId(workflow)] ?? (completedStepsFor(workflow) / Math.max(1, totalStepsFor(workflow)) * 100)}
+                                                color={getProgressColor(summary.progressPctById[bandId(workflow)] ?? (completedStepsFor(workflow) / Math.max(1, totalStepsFor(workflow)) * 100))}
+                                                sx={{ height: 10, borderRadius: 5 }}
+                                            />
+                                        </CardContent>
+                                    </Card>
+                                </Box>
+                            ))}
+                        </Box>
+                    )}
+                </Box>
+            </Box>
         </Container>
     );
 }
