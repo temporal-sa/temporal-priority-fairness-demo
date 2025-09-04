@@ -24,12 +24,15 @@ export default function SubmitTest() {
 
     const [formData, setFormData] = useState<WorkflowTestConfig>({
         workflowIdPrefix: generateDefaultPrefix(),
-        numberOfWorkflows: 100,
+        numberOfWorkflows: 100, // default 100 for Priority
         mode: 'priority',
+        // Defaults for Fairness mode
         bands: [
-            { key: 'first-class', weight: 15 },
+            { key: 'vip-class', weight: 30 },
+            { key: 'first-class', weight: 10 },
             { key: 'business-class', weight: 5 },
-            { key: 'economy-class', weight: 1 },
+            { key: 'economy-class', weight: 2 },
+            { key: 'standby-list', weight: 1 },
         ]
     });
     const [bandErrors, setBandErrors] = useState<Array<{ key?: string; weight?: string }>>([]);
@@ -39,42 +42,82 @@ export default function SubmitTest() {
 
     const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = event.target;
-        setFormData(prev => ({
-            ...prev,
-            [name]: name === 'numberOfWorkflows' ? parseInt(value) || 0 : value
-        }));
+        if (name === 'numberOfWorkflows') {
+            const nextTotal = parseInt(value) || 0;
+            setFormData(prev => {
+                if (prev.mode === 'fairness') {
+                    const bands = [...(prev.bands || [])];
+                    if (bands.length > 0) {
+                        const per = Math.floor(nextTotal / bands.length);
+                        const remainder = nextTotal % bands.length;
+                        const nextBands = bands.map((b, i) => ({ ...b, count: per + (i < remainder ? 1 : 0) }));
+                        return { ...prev, numberOfWorkflows: nextTotal, bands: nextBands };
+                    }
+                }
+                return { ...prev, numberOfWorkflows: nextTotal } as any;
+            });
+            return;
+        }
+        setFormData(prev => ({ ...prev, [name]: value } as any));
     };
 
     const handleModeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const mode = (event.target as HTMLInputElement).value as Mode;
-        setFormData(prev => ({ ...prev, mode }));
+        setFormData(prev => {
+            const nextIsFairness = mode === 'fairness';
+            const nextCount = nextIsFairness ? 300 : 100; // Fairness defaults to 300
+            let nextBands = prev.bands || [];
+            if (nextIsFairness && nextBands.length > 0) {
+                // Auto-divide into equal parts once when switching to Fairness
+                const per = Math.floor(nextCount / nextBands.length);
+                const remainder = nextCount % nextBands.length;
+                nextBands = nextBands.map((b, i) => ({ ...b, count: per + (i < remainder ? 1 : 0) }));
+            }
+            return {
+                ...prev,
+                mode,
+                numberOfWorkflows: nextCount,
+                bands: nextBands,
+            };
+        });
     };
 
     const updateBand = (index: number, field: keyof Band, value: string | number) => {
         setFormData(prev => {
             const bands = [...(prev.bands || [])];
-            const band = { ...bands[index] };
-            (band as any)[field] = field === 'weight' ? Number(value) : value;
-            bands[index] = band;
-            return { ...prev, bands };
+            const band = { ...bands[index] } as any;
+            band[field] = field === 'weight' || field === 'count' ? Number(value) : value;
+            bands[index] = band as Band;
+            const nextTotal = prev.mode === 'fairness' && field === 'count'
+                ? bands.reduce((s, b) => s + (b.count || 0), 0)
+                : prev.numberOfWorkflows;
+            return { ...prev, bands, numberOfWorkflows: nextTotal };
         });
         // Revalidate after change
         setTimeout(() => validateAndSetBands(), 0);
     };
 
     const addBand = () => {
-        setFormData(prev => ({
-            ...prev,
-            bands: [...(prev.bands || []), { key: '', weight: 1 }]
-        }));
+        const defaultCount = 60;
+        setFormData(prev => {
+            const nextBands = [...(prev.bands || []), { key: '', weight: 1, count: defaultCount } as Band];
+            return {
+                ...prev,
+                bands: nextBands,
+                numberOfWorkflows: prev.mode === 'fairness' ? (prev.numberOfWorkflows || 0) + defaultCount : prev.numberOfWorkflows,
+            };
+        });
         setTimeout(() => validateAndSetBands(), 0);
     };
 
     const removeBand = (index: number) => {
-        setFormData(prev => ({
-            ...prev,
-            bands: (prev.bands || []).filter((_, i) => i !== index)
-        }));
+        setFormData(prev => {
+            const bands = prev.bands || [];
+            const removed = bands[index]?.count || 0;
+            const nextBands = bands.filter((_, i) => i !== index);
+            const nextTotal = prev.mode === 'fairness' ? Math.max(0, (prev.numberOfWorkflows || 0) - removed) : prev.numberOfWorkflows;
+            return { ...prev, bands: nextBands, numberOfWorkflows: nextTotal };
+        });
         setTimeout(() => validateAndSetBands(), 0);
     };
 
@@ -87,9 +130,7 @@ export default function SubmitTest() {
             }
             if (b.weight === undefined || b.weight === null || isNaN(Number(b.weight))) {
                 e.weight = 'Weight is required';
-            } else if (Number(b.weight) < 1) {
-                e.weight = 'Weight must be >= 1';
-            }
+            } // allow 0 or any numeric weight; no min constraint
             return e;
         });
         setBandErrors(errors);
@@ -219,10 +260,18 @@ export default function SubmitTest() {
                                         type="number"
                                         value={band.weight}
                                         onChange={(e) => updateBand(idx, 'weight', e.target.value)}
-                                        inputProps={{ min: 1 }}
+                                        inputProps={{ min: 0 }}
                                         error={!!bandErrors[idx]?.weight}
                                         helperText={bandErrors[idx]?.weight || ''}
-                                        sx={{ width: 140 }}
+                                        sx={{ width: 120 }}
+                                    />
+                                    <TextField
+                                        label="Workflows"
+                                        type="number"
+                                        value={band.count ?? ''}
+                                        onChange={(e) => updateBand(idx, 'count', e.target.value)}
+                                        inputProps={{ min: 0 }}
+                                        sx={{ width: 120 }}
                                     />
                                     <IconButton aria-label="remove band" onClick={() => removeBand(idx)}>
                                         <Delete />

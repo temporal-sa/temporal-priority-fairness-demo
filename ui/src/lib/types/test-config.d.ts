@@ -3,6 +3,7 @@ export type Mode = 'priority' | 'fairness';
 export type Band = {
     key: string;
     weight: number;
+    count?: number; // optional per-band workflow count (fairness)
 }
 
 export type WorkflowTestConfig = {

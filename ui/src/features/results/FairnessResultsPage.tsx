@@ -105,14 +105,29 @@ export default function FairnessResultsPage({ runPrefix }: FairnessResultsPagePr
         return (completedActivities / totalActivities) * 100;
     };
 
-    const getKeyColor = (key: string) => {
-        // Reserved colors for standard demo bands
+    // Choose a readable text color for a hex background
+    const textColorForBg = (hex: string) => {
+        const c = hex.replace('#', '');
+        const r = parseInt(c.substring(0, 2), 16);
+        const g = parseInt(c.substring(2, 4), 16);
+        const b = parseInt(c.substring(4, 6), 16);
+        const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+        return luminance > 0.6 ? '#000' : '#fff';
+    };
+
+    const getKeyColor = (key: string, index?: number) => {
+        // Explicit colors for known demo bands
         const reserved: Record<string, string> = {
+            'vip-class': '#e53935', // nice red
+            'scrubs': '#fbc02d', // yellow/amber
             'first-class': '#6a1b9a', // purple
             'business-class': '#1976d2', // blue
             'economy-class': '#2e7d32', // green
         };
         if (reserved[key]) return reserved[key];
+
+        // If a 6th band exists in the ordering, use grey for it
+        if (index === 5) return '#9e9e9e'; // grey 500
 
         // Interesting palette for additional bands (avoid duplicates with reserved)
         const extra = [
@@ -135,7 +150,7 @@ export default function FairnessResultsPage({ runPrefix }: FairnessResultsPagePr
     const avg = (arr: number[]) => (arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0);
 
     const bandId = (wf: WorkflowByFairness) => `${wf.fairnessKey}|${wf.fairnessWeight}`;
-    const bandLabel = (wf: WorkflowByFairness) => `${wf.fairnessKey} (w=${wf.fairnessWeight})`;
+    const bandLabel = (wf: WorkflowByFairness) => `${wf.fairnessKey} (w=${wf.fairnessWeight}) · ${wf.numberOfWorkflows} workflows`;
     const totalStepsFor = (wf: WorkflowByFairness) => wf.numberOfWorkflows * 5;
     const completedStepsFor = (wf: WorkflowByFairness) => wf.activities.reduce((s, a) => s + a.numberCompleted, 0);
 
@@ -303,17 +318,17 @@ export default function FairnessResultsPage({ runPrefix }: FairnessResultsPagePr
                                     <YAxis domain={[0, 100]} ticks={[0,10,20,30,40,50,60,70,80,90,100]} tickFormatter={(v) => `${v}%`} />
                                     <RechartsTooltip formatter={(v: any) => `${(Number(v) || 0).toFixed(1)}%`} labelFormatter={(l) => `${Math.round(Number(l))}s`} />
                                     <Legend />
-                                    {summary.idsInOrder.map((id) => {
+                                    {summary.idsInOrder.map((id, idx) => {
                                         const key = id.split('|')[0];
                                         const name = summary.labelsById[id] || key;
                                         return (
-                                            <Line key={id} type="monotone" dataKey={id} stroke={getKeyColor(key)} dot={false} strokeWidth={2} name={name} />
+                                            <Line key={id} type="monotone" dataKey={id} stroke={getKeyColor(key, idx)} dot={false} strokeWidth={2} name={name} />
                                         );
                                     })}
                                     {/* Current value dots and ETA/Finish reference lines */}
-                                    {summary.idsInOrder.map((id) => {
+                                    {summary.idsInOrder.map((id, idx) => {
                                         const key = id.split('|')[0];
-                                        const color = getKeyColor(key);
+                                        const color = getKeyColor(key, idx);
                                         const lastPoint = summary.chartData[summary.chartData.length - 1];
                                         const curT = lastPoint ? Number(lastPoint.t) : 0;
                                         const curY = lastPoint ? Number(lastPoint[id] || 0) : 0;
@@ -348,7 +363,7 @@ export default function FairnessResultsPage({ runPrefix }: FairnessResultsPagePr
                                     const pct = summary.progressPctById[id] || 0;
                                     const orderBadge = `${idx + 1}.`;
                                     const suffix = finishTimesRef.current[id] != null
-                                        ? ` Finished`
+                                        ? ` · ~${Math.max(0, Math.round(finishTimesRef.current[id] as number))}s`
                                         : ` · ~${eta != null ? Math.max(0, Math.round(eta)) : '—'}s`;
                                     return (
                                         <Chip
@@ -366,7 +381,7 @@ export default function FairnessResultsPage({ runPrefix }: FairnessResultsPagePr
                                                         variant="determinate"
                                                         value={Math.min(100, Math.max(0, pct))}
                                                         size={24}
-                                                        sx={{ color: getKeyColor(key) }}
+                                                        sx={{ color: getKeyColor(key, idx) }}
                                                     />
                                                 </Box>
                                             }
@@ -402,10 +417,14 @@ export default function FairnessResultsPage({ runPrefix }: FairnessResultsPagePr
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
                                         <Chip
                                             label={`${workflow.fairnessKey} (w=${workflow.fairnessWeight})`}
-                                            sx={{
-                                                backgroundColor: getKeyColor(workflow.fairnessKey),
-                                                color: 'white',
-                                                fontWeight: 'bold'
+                                            sx={() => {
+                                                const idx = summary.idsInOrder.indexOf(bandId(workflow));
+                                                const bg = getKeyColor(workflow.fairnessKey, idx);
+                                                return {
+                                                    backgroundColor: bg,
+                                                    color: textColorForBg(bg),
+                                                    fontWeight: 'bold'
+                                                };
                                             }}
                                         />
                                         <Typography variant="body2" color="text.secondary">

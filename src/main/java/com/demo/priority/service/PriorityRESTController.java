@@ -98,31 +98,72 @@ public class PriorityRESTController {
                 bands.add(b1); bands.add(b2); bands.add(b3);
             }
 
-            for (int workflowNum = 1; workflowNum <  wfConfig.getNumberOfWorkflows() + 1; workflowNum++){
-                Band band = bands.get((workflowNum - 1) % bands.size());
-                logger.debug("Starting fairness workflow {}-{} [{}:{}]", wfConfig.getWorkflowIdPrefix(), workflowNum, band.getKey(), band.getWeight());
+            // Determine if explicit counts were provided; if so, use them.
+            boolean hasCounts = bands.stream().anyMatch(b -> b.getCount() != null && b.getCount() > 0);
+            int totalWF = wfConfig.getNumberOfWorkflows();
+            if (hasCounts) {
+                totalWF = bands.stream().mapToInt(b -> b.getCount() == null ? 0 : b.getCount()).sum();
+            }
+            startTime = this.getTargetWFStartTime(totalWF);
 
-                FairnessWorkflowData inputParameters = new FairnessWorkflowData();
-                inputParameters.setFairnessKey(band.getKey());
-                inputParameters.setFairnessWeight(band.getWeight());
+            if (hasCounts) {
+                int workflowNum = 1;
+                for (Band band : bands) {
+                    int count = band.getCount() == null ? 0 : band.getCount();
+                    for (int i = 0; i < count; i++) {
+                        logger.debug("Starting fairness workflow {}-{} [{}:{}]", wfConfig.getWorkflowIdPrefix(), workflowNum, band.getKey(), band.getWeight());
 
-                SearchAttributes searchAttribs = SearchAttributes.newBuilder()
-                        .set(SearchAttributeKey.forKeyword("FairnessKey"), band.getKey())
-                        .set(SearchAttributeKey.forLong("FairnessWeight"), (long) band.getWeight())
-                        .set(SearchAttributeKey.forLong("ActivitiesCompleted"), (long)0)
-                        .build();
+                        FairnessWorkflowData inputParameters = new FairnessWorkflowData();
+                        inputParameters.setFairnessKey(band.getKey());
+                        inputParameters.setFairnessWeight(band.getWeight());
 
-                FairnessWorkflow workflow = client.newWorkflowStub(
-                        FairnessWorkflow.class,
-                        WorkflowOptions.newBuilder()
-                                .setTaskQueue("fairness-queue")
-                                .setWorkflowId(wfConfig.getWorkflowIdPrefix() + "-" + workflowNum)
-                                .setStartDelay(this.getStartDelay(startTime))
-                                .setTypedSearchAttributes(searchAttribs)
-                                .build()
-                );
+                        SearchAttributes searchAttribs = SearchAttributes.newBuilder()
+                                .set(SearchAttributeKey.forKeyword("FairnessKey"), band.getKey())
+                                .set(SearchAttributeKey.forLong("FairnessWeight"), (long) band.getWeight())
+                                .set(SearchAttributeKey.forLong("ActivitiesCompleted"), (long)0)
+                                .build();
 
-                WorkflowExecution wfExec = WorkflowClient.start(workflow::fairnessWorkflow, inputParameters);
+                        FairnessWorkflow workflow = client.newWorkflowStub(
+                                FairnessWorkflow.class,
+                                WorkflowOptions.newBuilder()
+                                        .setTaskQueue("fairness-queue")
+                                        .setWorkflowId(wfConfig.getWorkflowIdPrefix() + "-" + workflowNum)
+                                        .setStartDelay(this.getStartDelay(startTime))
+                                        .setTypedSearchAttributes(searchAttribs)
+                                        .build()
+                        );
+
+                        WorkflowExecution wfExec = WorkflowClient.start(workflow::fairnessWorkflow, inputParameters);
+                        workflowNum++;
+                    }
+                }
+            } else {
+                for (int workflowNum = 1; workflowNum <  wfConfig.getNumberOfWorkflows() + 1; workflowNum++){
+                    Band band = bands.get((workflowNum - 1) % bands.size());
+                    logger.debug("Starting fairness workflow {}-{} [{}:{}]", wfConfig.getWorkflowIdPrefix(), workflowNum, band.getKey(), band.getWeight());
+
+                    FairnessWorkflowData inputParameters = new FairnessWorkflowData();
+                    inputParameters.setFairnessKey(band.getKey());
+                    inputParameters.setFairnessWeight(band.getWeight());
+
+                    SearchAttributes searchAttribs = SearchAttributes.newBuilder()
+                            .set(SearchAttributeKey.forKeyword("FairnessKey"), band.getKey())
+                            .set(SearchAttributeKey.forLong("FairnessWeight"), (long) band.getWeight())
+                            .set(SearchAttributeKey.forLong("ActivitiesCompleted"), (long)0)
+                            .build();
+
+                    FairnessWorkflow workflow = client.newWorkflowStub(
+                            FairnessWorkflow.class,
+                            WorkflowOptions.newBuilder()
+                                    .setTaskQueue("fairness-queue")
+                                    .setWorkflowId(wfConfig.getWorkflowIdPrefix() + "-" + workflowNum)
+                                    .setStartDelay(this.getStartDelay(startTime))
+                                    .setTypedSearchAttributes(searchAttribs)
+                                    .build()
+                    );
+
+                    WorkflowExecution wfExec = WorkflowClient.start(workflow::fairnessWorkflow, inputParameters);
+                }
             }
         }
         return "Done";
