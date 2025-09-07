@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { Box, Button, TextField, Paper, Typography, Alert, CircularProgress, InputAdornment, Checkbox } from "@mui/material";
-import { useNavigate } from "react-router-dom";
+import { Box, Button, TextField, Paper, Typography, Alert, CircularProgress, InputAdornment, Checkbox, Link } from "@mui/material";
+import { Link as RouterLink, useNavigate } from "react-router-dom";
 import axios from "axios";
 import type { WorkflowTestConfig, Mode, Band } from "../../lib/types/test-config";
 import { RadioGroup, FormControlLabel, Radio, Stack, IconButton } from "@mui/material";
@@ -277,7 +277,12 @@ export default function SubmitTest() {
 
                 {formData.mode === 'fairness' && (
                     <Box>
-                        <Typography variant="subtitle1" sx={{mb: 1.5}}>Fairness Bands</Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', mb: 1.5 }}>
+                            <Typography variant="subtitle1">Fairness Bands</Typography>
+                            <Link component={RouterLink} to="/what-is-fairness" sx={{ fontSize: 12 }}>
+                                What is fairness?
+                            </Link>
+                        </Box>
                         <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 1.5 }}>
                             <Button
                                 variant={presetLocked ? 'contained' : 'outlined'}
