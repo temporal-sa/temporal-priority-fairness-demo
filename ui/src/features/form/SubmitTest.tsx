@@ -111,9 +111,32 @@ export default function SubmitTest() {
             numberOfWorkflows: total,
         }));
         setPresetLocked(true);
-        setPresetName('Airline Boarding Priority Queue');
+        setPresetName('Airline Boarding');
         setPresetBlurb('This setup models how airlines balance different passenger categories during boarding and standby allocation. The “virtual queues” created by fairness are like boarding groups');
         // Reset any existing validation errors for a clean preset view
+        setBandErrors([]);
+    };
+
+    const applyInvoiceProcessorPreset = () => {
+        const invoiceBands: Band[] = [
+            { key: 'small-law-firm',       weight: 1, count: 10 },
+            { key: 'local-gym',            weight: 1, count: 8 },
+            { key: 'mega-insurance',         weight: 1, count: 250 },
+            { key: 'lemonade-stand',       weight: 1, count: 2 },
+            { key: 'tiny-consulting',      weight: 1, count: 15 },
+            { key: 'smol-florist',         weight: 1, count: 21 },
+            { key: 'diagon-alley-potions', weight: 1, count: 12 },
+        ];
+        const total = invoiceBands.reduce((s, b) => s + (b.count || 0), 0);
+        setFormData(prev => ({
+            ...prev,
+            mode: 'fairness',
+            bands: invoiceBands,
+            numberOfWorkflows: total,
+        }));
+        setPresetLocked(true);
+        setPresetName('Invoice Processor');
+        setPresetBlurb('This setup models how a payment processor balances different businesses submitting invoices at the same time. Assigning equal weights to all businesses ensures that high-volume senders such as large insurers or utilities don’t block progress for smaller firms like local gyms, law offices, or consultants.');
         setBandErrors([]);
     };
 
@@ -285,11 +308,18 @@ export default function SubmitTest() {
                         </Box>
                         <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 1.5 }}>
                             <Button
-                                variant={presetLocked ? 'contained' : 'outlined'}
+                                variant={presetLocked && presetName === 'Airline Boarding' ? 'contained' : 'outlined'}
                                 color="primary"
                                 onClick={applyAirlinePreset}
                             >
-                                Airline Boarding Priority Queue
+                                Airline Boarding
+                            </Button>
+                            <Button
+                                variant={presetLocked && presetName === 'Invoice Processor' ? 'contained' : 'outlined'}
+                                color="primary"
+                                onClick={applyInvoiceProcessorPreset}
+                            >
+                                Invoice Processor
                             </Button>
                             <Button
                                 variant={!presetLocked ? 'contained' : 'outlined'}
@@ -328,13 +358,22 @@ export default function SubmitTest() {
                                         type="number"
                                         value={band.weight}
                                         onChange={(e) => updateBand(idx, 'weight', e.target.value)}
-                                        inputProps={{ min: 0, readOnly: presetLocked }}
+                                        inputProps={{ min: 0, readOnly: presetLocked && !formData.disableFairness }}
+                                        disabled={!!formData.disableFairness}
                                         error={!!bandErrors[idx]?.weight}
                                         helperText={bandErrors[idx]?.weight || ''}
-                                        sx={{ width: 120 }}
+                                        sx={{
+                                            width: 120,
+                                            '& .MuiInputBase-root.Mui-disabled': {
+                                                backgroundColor: (theme) => theme.palette.action.disabledBackground,
+                                            },
+                                            '& .MuiInputBase-input.Mui-disabled': {
+                                                WebkitTextFillColor: (theme) => theme.palette.text.disabled,
+                                            },
+                                        }}
                                         InputProps={{
-                                            readOnly: presetLocked,
-                                            endAdornment: presetLocked ? (
+                                            readOnly: presetLocked && !formData.disableFairness,
+                                            endAdornment: presetLocked && !formData.disableFairness ? (
                                                 <InputAdornment position="end"><Lock fontSize="small" /></InputAdornment>
                                             ) : undefined
                                         }}
