@@ -1,8 +1,10 @@
-# Demonstration of priority queues in Temporal
+# Temporal Priority/Fairness Task Queue Demo
 
-This simple demonstration is designed to showcase how priority queues operate in Temporal.  
+This demo showcases both priority-based dispatch and fairness-based dispatch in Temporal task queues.
 
-The application is deployed into two components, a react frontend using Vite that allows the user to specify a prefix to use in a test and how many workflows to run in order to demonstrate the priority queue management.   The workflows are very simple, there is no priority set for the workflow tasks but each workflow consists of 5 activities done in series.  The activities have a priority put on them and so workflows configured for the higher priority will have their activities progressed first.
+The app has two components:
+- A React frontend (Vite) where you choose a run prefix, number of workflows, and a mode (Priority or Fairness). In Fairness mode you can also configure bands (key + weight).
+- A Spring Boot backend (Java 21) that starts the workflows and exposes endpoints to report progress grouped by priority or fairness bands.
 
 I have found that with 5 executor threads in the application 100 workflows is enough to showcase the feature clearly.  The Server side is implemented using Java Springboot with the configuration of the workers exposed in the application.yaml file.  The general deployment topology is shown below.
 
@@ -11,55 +13,71 @@ The workflow summary shown below for a single workflow instance.
 
 ![Workflow-Summary.png](docs/Workflow-summary.png)
 
-# Pre-requisites - Setup namespace with search attributes needed.
-Using the latest dev server (1.4 or higher, or from docker-compose repo 1.28.1 or higher) set the configuration `matching.useNewMatcher` as mentioned in [pre-release docs](https://docs.google.com/document/d/1FnBZRjlz0eWGWk_bVLmQ3eZOTOJRFO4s4utGdQtWkIQ/edit?tab=t.0). 
+# Pre-requisites
+Using the latest dev server (1.4 or higher, or from docker-compose repo 1.28.1 or higher) enable both the new matcher and fairness in Matching. Set the dynamic config values `matching.useNewMatcher` and `matching.useFairness`.
+
+If you run Temporal via the CLI dev server, start it with both flags, for example:
+```
+temporal server start-dev \
+  --dynamic-config-value matching.useNewMatcher=true \
+  --dynamic-config-value matching.useFairness=true
+```
+
 Assuming you are using the auto-setup [docker-compose](https://github.com/temporalio/docker-compose) config then add the following to your dynamicconfig
 ```
 matching.useNewMatcher:
   - value: true
     constraints:
        namespace: default
+matching.useFairness:
+  - value: true
+    constraints:
+       namespace: default
 ```
 
-If using Temporal cloud then request the enablement of priority queues.  
+If using Temporal Cloud, request enablement of priority/fairness on your namespace.  
 
-_Note - if priority queues have not been enabled then the default processing of approximate first in first out to the task queue will apply so all workflows will progress at roughly even speeds._
+Note: if priority/fairness are not enabled then approximate FIFO dispatch will apply and workflows will progress at roughly even speeds.
 
+Required search attributes
+- `Priority` (int)
+- `ActivitiesCompleted` (int)
+- `FairnessKey` (keyword)
+- `FairnessWeight` (int)
 
-Ensure that you have added the search attributes **`Priority`** and **`ActivitiesCompleted`** both of type int to the namespace used.  These are needed for the demo as each workflow gets assigned a priority in the input parameters and as the workflow progresses it will update the search attributes with the number of activities completed.  This allows the UI to see how each workflow is progressing and display the results.
-
+You can create them via Temporal CLI:
 ```
 $ temporal --address localhost:7233 --namespace default operator search-attribute create --name Priority --type int
 $ temporal --address localhost:7233 --namespace default operator search-attribute create --name ActivitiesCompleted --type int
+$ temporal --address localhost:7233 --namespace default operator search-attribute create --name FairnessKey --type keyword
+$ temporal --address localhost:7233 --namespace default operator search-attribute create --name FairnessWeight --type int
 ```
+
+Or use the helper scripts in this repo:
+- Local/dev server: `./createlocalsearchattributes.sh`
+  - Uses `temporal` CLI; defaults to `TEMPORAL_ADDRESS=localhost:7233`, `TEMPORAL_NAMESPACE=default`.
+  - You can override via env vars, for example:
+    - `TEMPORAL_ADDRESS=localhost:7234 TEMPORAL_NAMESPACE=my-ns ./createlocalsearchattributes.sh`.
+- Temporal Cloud: `./createcloudsearchattributes.sh`
+  - Uses `tcld` CLI against your Temporal Cloud namespace.
+  - Requires `TEMPORAL_NAMESPACE` to be set, e.g. `export TEMPORAL_NAMESPACE=my-cloud-namespace`.
+  - Authentication options:
+    - Logged in via `tcld login` (recommended).
+    - Or set an API key: the script will automatically use `TEMPORAL_CLOUD_API_KEY` if set, else `TCLD_API_KEY`.
+  - Examples:
+    - Using current `tcld` login session:
+      - `export TEMPORAL_NAMESPACE=my-cloud-namespace && ./createcloudsearchattributes.sh`
+    - Using an API key directly:
+      - `TEMPORAL_NAMESPACE=my-cloud-namespace TEMPORAL_CLOUD_API_KEY=tsk_abc123 ./createcloudsearchattributes.sh`
+      - or `TEMPORAL_NAMESPACE=my-cloud-namespace TCLD_API_KEY=tsk_abc123 ./createcloudsearchattributes.sh`
+
 
 # Run the application
 ## Run the UI
-The UI is a react application.  To install the dependencies simply run the npm install command
-``` 
-$ npm install
-
-added 240 packages, and audited 241 packages in 6s
-
-56 packages are looking for funding
-  run `npm fund` for details
-
-found 0 vulnerabilities
-```
-Once installed then the npm run dev will run the development server.  Simply run the startwebui script to start.
-``` 
-$ ./startwebui.sh
-
-> ui@0.0.0 dev
-> vite
-
-
-  VITE v7.0.6  ready in 193 ms
-
-  ➜  Local:   https://localhost:4000/
-  ➜  Network: use --host to expose
-  ➜  press h + enter to show help 
-```
+The UI lives in `ui/`.
+- Install deps: `cd ui && npm ci`
+- Start dev server: `cd ui && npm run dev` (served at https://localhost:4000/)
+- Or use the helper script from repo root: `ui/startwebui.sh`
 
 ## Run the Temporal Worker
 To start the worker...
@@ -97,8 +115,15 @@ Once both components have successfully started up point the browser at https://l
 
 ![submit-screenshot.png](docs/submit-screenshot.png)
 
-The system will suffix a number to the "Workflow ID Prefix" so each workflow gets a unique identifier.  In order to build up a queue it is necessary to run a number of workflows, generally 100 are enough to showcase the priority in action but "any" number can be selected.  The system will start the workflows, making use of a delayed start so that all workflows fire at the same time.  (within ratelimiting capabilities of the namespace.)
-The results are displayed on the results page with workflows of each "priority" split out and the progress of the activities within each priority are shown with a progress bar.  This means that visually you can see the higher priority workflows completing first.
+The system will suffix a number to the "Workflow ID Prefix" so each workflow gets a unique identifier. In order to build up a queue it is necessary to run a number of workflows; generally 100 are enough to showcase behavior clearly. The system will start the workflows with a small delayed start so they begin at approximately the same time.
+
+Modes
+- Priority (default): Workflows assign activity priorities 1..5. Results group by priority and show progress bars per activity. Higher priority workflows progress first when activity executors are constrained.
+- Fairness: Each workflow is assigned a fairness key and weight (bands). Defaults are `first-class` (15), `business-class` (5), `economy-class` (1). Results group by fairness key and weight. The UI lets you add/remove bands and edit keys/weights.
+
+Viewing results
+- After submit, the UI navigates to `/results/<runPrefix>?mode=priority|fairness`.
+- Priority results call `GET /api/run-status` and show groups labeled `Priority N`.
+- Fairness results call `GET /api/run-status-fairness` and show groups labeled `<key> (w=<weight>)`.
 
 ![Priority Results](docs/priority-results.png)
-

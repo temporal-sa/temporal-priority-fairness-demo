@@ -16,12 +16,15 @@ import {
 import { Refresh } from '@mui/icons-material';
 import axios from 'axios';
 import type { TestResults, WorkflowByPriority, Activity } from '../../lib/types/test-config';
+import { useSearchParams } from 'react-router-dom';
 
 interface TestResultsPageProps {
     runPrefix: string;
 }
 
 export default function TestResultsPage({ runPrefix }: TestResultsPageProps) {
+    const [searchParams] = useSearchParams();
+    const mode = (searchParams.get('mode') || 'priority').toLowerCase();
     const [testResults, setTestResults] = useState<TestResults | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -60,8 +63,7 @@ export default function TestResultsPage({ runPrefix }: TestResultsPageProps) {
 
     useEffect(() => {
         if (!autoRefresh) return;
-        
-        const interval = setInterval(fetchResults, 3000); // Refresh every 3 seconds
+        const interval = setInterval(fetchResults, 1500); // Refresh every 1.5s while in progress
         return () => clearInterval(interval);
     }, [autoRefresh, runPrefix]);
 
@@ -105,6 +107,7 @@ export default function TestResultsPage({ runPrefix }: TestResultsPageProps) {
                     <Typography variant="h4" component="h1">
                         Test Results: {runPrefix}
                     </Typography>
+                    <Chip label={`Mode: ${mode === 'fairness' ? 'Fairness' : 'Priority'}`} size="small" sx={{ mt: 0.5 }} />
                     {testResults && (
                         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
                             {testResults.totalWorkflowsInTest} workflows in test
@@ -167,8 +170,8 @@ export default function TestResultsPage({ runPrefix }: TestResultsPageProps) {
                                             />
                                         </Box>
 
-                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, overflowX: 'auto', pb: 1 }}>
-                                            <Typography variant="caption" color="text.secondary" sx={{ minWidth: 'fit-content' }}>
+                                        <Box sx={{ display: 'flex', alignItems: 'stretch', gap: 2, flexWrap: 'wrap', pb: 1 }}>
+                                            <Typography variant="caption" color="text.secondary" sx={{ flex: '0 0 80px' }}>
                                                 Activities
                                             </Typography>
                                             {[1, 2, 3, 4, 5].map((activityNum) => {
@@ -176,7 +179,7 @@ export default function TestResultsPage({ runPrefix }: TestResultsPageProps) {
                                                     { activityNumber: activityNum, numberCompleted: 0 };
                                                 const progress = calculateActivityProgress(activity, workflow.numberOfWorkflows);
                                                 return (
-                                                    <Box key={activityNum} sx={{ minWidth: 200, flex: '1' }}>
+                                                    <Box key={activityNum} sx={{ flex: '1 1 160px', minWidth: 160 }}>
                                                         <Box sx={{ p: 2, border: '1px solid #e0e0e0', borderRadius: 1 }}>
                                                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                                                 <Typography variant="body2" fontWeight="medium" sx={{ minWidth: 'fit-content' }}>

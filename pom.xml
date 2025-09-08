@@ -52,14 +52,14 @@
 		</dependency>
 		<dependency>
 			<groupId>io.temporal</groupId>
-			<artifactId>temporal-sdk</artifactId>
-			<version>1.29.0</version>
+				<artifactId>temporal-sdk</artifactId>
+				<version>1.31.0</version>
 			<optional>true</optional>
 		</dependency>
 		<dependency>
 			<groupId>io.temporal</groupId>
-			<artifactId>temporal-spring-boot-starter</artifactId>
-			<version>1.29.0</version>
+				<artifactId>temporal-spring-boot-starter</artifactId>
+				<version>1.31.0</version>
 			<optional>true</optional>
 		</dependency>
 		<dependency>
