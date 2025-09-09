@@ -2,6 +2,12 @@
 
 This demo showcases both priority-based dispatch and fairness-based dispatch in Temporal task queues.
 
+### Watch Donald Forbes demo and explain Priority in this [6 minute video](https://www.youtube.com/watch?v=Nc8d8cNlEwc).
+[![Watch the demo](./assets/priority-video.jpg)](https://www.youtube.com/watch?v=Nc8d8cNlEwc)
+
+### Watch Steve Androulakis demo and explain Fairness in this [6 minute video](https://www.youtube.com/watch?v=Cf6_PBoyxbk).
+[![Watch the demo](./assets/fairness-video.jpg)](https://www.youtube.com/watch?v=Cf6_PBoyxbk)
+
 The app has two components:
 - A React frontend (Vite) where you choose a run prefix, number of workflows, and a mode (Priority or Fairness). In Fairness mode you can also configure bands (key + weight).
 - A Spring Boot backend (Java 21) that starts the workflows and exposes endpoints to report progress grouped by priority or fairness bands.
