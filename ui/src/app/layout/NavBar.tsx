@@ -10,9 +10,9 @@ export default function NavBar() {
       <AppBar position="static" 
         sx={{ backgroundImage: 'linear-gradient(135deg,#182a73 0%, #218aae 69%, #20a7ac 89%)' }}>
         <Container maxWidth={false}>
-          <Toolbar sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-            {/* Left section - Home link */}
-            <MenuItem component={NavLink} to='/' sx={{ display: 'flex', gap: 2 }}>
+          <Toolbar sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
+            {/* Centered site header - Home link */}
+            <MenuItem component={NavLink} to='/' sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
               <Box component="img" 
                    src="/images/temporal_logo_animation.gif" 
                    alt="Temporal Logo" 
@@ -26,11 +26,6 @@ export default function NavBar() {
               </Typography>
             </MenuItem>
 
-            {/* Center section - Expandable space */}
-            <Box sx={{ flexGrow: 1 }} />
-
-            {/* Right section - User Menu */}
-            <MenuItem></MenuItem>
           </Toolbar>
         </Container>
       </AppBar>
