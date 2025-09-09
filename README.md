@@ -1,6 +1,10 @@
 # Temporal Priority/Fairness Task Queue Demo
 
-This demo showcases both priority-based dispatch and fairness-based dispatch in Temporal task queues.
+Have you ever wanted to control the priority of work in a Queue? Have you ever wished for fair processing instead of FIFO?
+
+Good news: Temporal has some new features in pre-release: Task Queue Priority and Task Queue Fairness. These features ensure balanced execution across tenants & users.
+
+This demo shows how to give priority to more important work, and how to prevent large tenants from blocking smaller ones - perfect for multi-tenant SaaS, payment processors, customer billing systems, and workloads like travel or ticketing.
 
 ### Watch Donald Forbes demo and explain Priority in this [6 minute video](https://www.youtube.com/watch?v=Nc8d8cNlEwc).
 [![Watch the demo](./assets/priority-video.jpg)](https://www.youtube.com/watch?v=Nc8d8cNlEwc)
