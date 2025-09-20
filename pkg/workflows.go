@@ -46,16 +46,16 @@ func FairnessWorkflow(ctx workflow.Context, data FairnessWorkflowData) (string, 
 	return "Complete", nil
 }
 
-func PriorityWorkflow(ctx workflow.Context, pData PriorityWorkflowData) (string, error) {
+func PriorityWorkflow(ctx workflow.Context, data PriorityWorkflowData) (string, error) {
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: 5 * time.Second,
 		Priority: temporal.Priority{
-			PriorityKey: pData.Priority,
+			PriorityKey: data.Priority,
 		},
 	}
 
 	activityData := ActivityData{
-		Priority: pData.Priority,
+		Priority: data.Priority,
 	}
 
 	ctx = workflow.WithActivityOptions(ctx, ao)
