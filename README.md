@@ -12,13 +12,13 @@ This demo shows how to give priority to more important work, and how to prevent 
 ### Watch Steve Androulakis demo and explain Fairness in this [6 minute video](https://www.youtube.com/watch?v=Cf6_PBoyxbk).
 [![Watch the demo](./assets/fairness-video.jpg)](https://www.youtube.com/watch?v=Cf6_PBoyxbk)
 
-The app has two components:
+The app has three components:
 - A React frontend (Vite) where you choose a run prefix, number of workflows, and a mode (Priority or Fairness). In Fairness mode you can also configure bands (key + weight).
-- A Spring Boot backend (Java 21) that starts the workflows and exposes endpoints to report progress grouped by priority or fairness bands.
+- A Go backend exposes an API to start workflows and fetch workflow progress grouped by priority or fairness bands.
+- A Temporal Worker written in Go
 
-I have found that with 5 executor threads in the application 100 workflows is enough to showcase the feature clearly.  The Server side is implemented using Java Springboot with the configuration of the workers exposed in the application.yaml file.  The general deployment topology is shown below.
+I have found that with 5 executor threads in the application 100 workflows is enough to showcase the feature clearly.
 
-![Priority-Task-Queue-Demo.jpg](docs/Priority-Task-Queue-Demo.jpg)
 The workflow summary shown below for a single workflow instance.
 
 ![Workflow-Summary.png](docs/Workflow-summary.png)
@@ -45,7 +45,7 @@ matching.useFairness:
        namespace: default
 ```
 
-If using Temporal Cloud, request enablement of priority/fairness on your namespace.  
+If using Temporal Cloud, request enablement of priority/fairness on your namespace. **Important:** By default this demo uses the `default` task queue for workflows and activities. If you have enabled priority/fairness on a different task queue, then set the `TEMPORAL_TASK_QUEUE` envinroment variable to override the default.
 
 Note: if priority/fairness are not enabled then approximate FIFO dispatch will apply and workflows will progress at roughly even speeds.
 
@@ -89,11 +89,15 @@ The UI lives in `ui/`.
 - Start dev server: `cd ui && npm run dev` (served at https://localhost:4000/)
 - Or use the helper script from repo root: `ui/startwebui.sh`
 
+## Run the API server
+```
+go run ./pkg/api
+```
+
 ## Run the Temporal Worker
-To start the worker...
 If running using a local temporal instance
 ```
-$ ./startlocalworker.sh
+go run ./pkg/worker
 ```
 If running using temporal cloud then we need to get the environment variables set in advance.  The variables you need to get setup are:-
 * TEMPORAL_NAMESPACE eg. donald-demo.sdvdw
@@ -103,24 +107,12 @@ If running using temporal cloud then we need to get the environment variables se
 
 With these set you can run `./startcloudworker.sh`. eg.
 ```
-$ TEMPORAL_NAMESPACE=donald-demo.sdvdw TEMPORAL_ADDRESS=donald-demo.sdvdw.tmprl.cloud:7233 TEMPORAL_KEY_PATH=/Users/donald/stuff/source/certificates/temporal-client.key TEMPORAL_CERT_PATH=/Users/donald/stuff/source/certificates/temporal-client-leaf.pem ./startcloudworker.sh
-
-```
-However, if you are using the temporal cli and have setup an environment for this you can simply pass in the environment name used and the script will extract the env vars from the settings of the temporal environment.
-
-``` 
-$ temporal env get donald-demo
-  Property        Value
-  address         donald-demo.sdvdw.tmprl.cloud:7233
-  namespace       donald-demo.sdvdw
-  tls-cert-path   /Users/donald/stuff/source/certificates/temporal-client-leaf.pem
-  tls-key-path    /Users/donald/stuff/source/certificates/temporal-client.key
-
-$ ./startcloudworker.sh donald-demo
+source setcloudenv.sh
+go run ./pkg/worker
 ```
 
 # Using the application
-The app is split into two components the web UI that will start a web server up on port 4000 (Configured in vite.config.js) and the worker that also includes an API service which will start up on port 7080 (configured in src/main/resources/application.yaml).
+The app is split into three components; the web UI that will start a web server up on port 4000 (Configured in vite.config.js), the Temporal Worker, and the API service which will start up on port 7080.
 Once both components have successfully started up point the browser at https://localhost:4000.  This will show the interface below.
 
 ![submit-screenshot.png](docs/submit-screenshot.png)
