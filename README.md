@@ -24,13 +24,13 @@ The workflow summary shown below for a single workflow instance.
 ![Workflow-Summary.png](docs/Workflow-summary.png)
 
 # Pre-requisites
-Using the latest dev server (1.4 or higher, or from docker-compose repo 1.28.1 or higher) enable both the new matcher and fairness in Matching. Set the dynamic config values `matching.useNewMatcher` and `matching.useFairness`.
+Using the latest dev server (1.4 or higher, or from docker-compose repo 1.28.1 or higher) enable both the new matcher and fairness in Matching. Set the dynamic config values `matching.useNewMatcher` and `matching.enableFairness`.
 
 If you run Temporal via the CLI dev server, start it with both flags, for example:
 ```
 temporal server start-dev \
   --dynamic-config-value matching.useNewMatcher=true \
-  --dynamic-config-value matching.useFairness=true
+  --dynamic-config-value matching.enableFairness=true
 ```
 
 Assuming you are using the auto-setup [docker-compose](https://github.com/temporalio/docker-compose) config then add the following to your dynamicconfig
@@ -39,13 +39,13 @@ matching.useNewMatcher:
   - value: true
     constraints:
        namespace: default
-matching.useFairness:
+matching.enableFairness:
   - value: true
     constraints:
        namespace: default
 ```
 
-If using Temporal Cloud, request enablement of priority/fairness on your namespace.  
+If using Temporal Cloud, request enablement of priority/fairness on your namespace.
 
 Note: if priority/fairness are not enabled then approximate FIFO dispatch will apply and workflows will progress at roughly even speeds.
 
@@ -108,7 +108,7 @@ $ TEMPORAL_NAMESPACE=donald-demo.sdvdw TEMPORAL_ADDRESS=donald-demo.sdvdw.tmprl.
 ```
 However, if you are using the temporal cli and have setup an environment for this you can simply pass in the environment name used and the script will extract the env vars from the settings of the temporal environment.
 
-``` 
+```
 $ temporal env get donald-demo
   Property        Value
   address         donald-demo.sdvdw.tmprl.cloud:7233
