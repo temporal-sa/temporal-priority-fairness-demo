@@ -49,11 +49,11 @@ run from `python/`.
 - [x] 4. Verify sort/grouping/tie-break; `just check` + `just test`
 
 ## Step 8: Search attributes — keys, start builders, view parsers
-- [ ] 1. RED: tests/test_search_attributes.py (parse_priority_view + defaulting; parse_fairness_view + defaulting "" / 0)
-- [ ] 2. Document the four SA keys/types in search_attributes.py header
-- [ ] 3. GREEN: typed SA keys (CONFIRM constructors), build_priority/fairness_search_attributes, parse_priority/fairness_view
-- [ ] 4. REFACTOR: module-level key constants shared by builders and parsers
-- [ ] 5. Verify defaulting branches; `just check` + `just test`
+- [x] 1. RED: tests/test_search_attributes.py (parse_priority_view + defaulting; parse_fairness_view + defaulting "" / 0)
+- [x] 2. Document the four SA keys/types in search_attributes.py header
+- [x] 3. GREEN: typed SA keys (CONFIRM constructors), build_priority/fairness_search_attributes, parse_priority/fairness_view
+- [x] 4. REFACTOR: module-level key constants shared by builders and parsers
+- [x] 5. Verify defaulting branches; `just check` + `just test`
 
 ## Step 9: Activities
 - [ ] 1. RED: tests/test_activities.py (ActivityEnvironment; result line appended w/ "Activity step [N] completed"; input returned)
