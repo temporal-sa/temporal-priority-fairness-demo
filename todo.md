@@ -62,10 +62,10 @@ run from `python/`.
 - [x] 4. Verify append/return; `just check` + `just test`
 
 ## Step 10: Workflows
-- [ ] 1. RED: tests/test_workflows.py (time-skipping env + recording mock activity; 5 calls, ActivitiesCompleted=5, "Complete", priority/fairness priority set/omitted)
-- [ ] 2. GREEN: workflows.py PriorityWorkflow + FairnessWorkflow (imports_passed_through, activity priority, upsert SA — CONFIRM API)
-- [ ] 3. REFACTOR: shared step-loop coroutine if it doesn't entangle activity options
-- [ ] 4. Verify orchestration assertions; `just check` + `just test`
+- [x] 1. RED: tests/test_workflows.py (time-skipping env + recording mock activity; 5 calls, ActivitiesCompleted=5, "Complete", priority/fairness priority set/omitted)
+- [x] 2. GREEN: workflows.py PriorityWorkflow + FairnessWorkflow (imports_passed_through, activity priority, upsert SA — CONFIRM API)
+- [x] 3. REFACTOR: shared step-loop coroutine if it doesn't entangle activity options
+- [x] 4. Verify orchestration assertions; `just check` + `just test`
 
 ## Step 11: Connection config (envconfig + Pydantic converter)
 - [ ] 1. RED: tests/test_config.py (build_connect_config attaches pydantic_data_converter; injected/patched loader)
