@@ -4,12 +4,12 @@ Mirrors `plan.md`. Execute-plan checks off each sub-step as work progresses. All
 run from `python/`.
 
 ## Step 1: Project scaffold and toolchain
-- [ ] 1. Create python/pyproject.toml (project, deps, dev group, hatchling build, ruff, mypy, pytest config)
-- [ ] 2. Create constants.py (task queues, SA names, demo constants)
-- [ ] 3. Create python/justfile (default/check/fmt/test/all)
-- [ ] 4. Create python/noxfile.py (tests + lint sessions)
-- [ ] 5. `uv sync` and CONFIRM temporalio[pydantic]/fastapi/uvicorn/pydantic resolve on Python 3.14 (stop + report if not)
-- [ ] 6. Add python/.gitignore; confirm `just check` and `just test` (empty) exit 0
+- [x] 1. Create python/pyproject.toml (project, deps, dev group, hatchling build, ruff, mypy, pytest config)
+- [x] 2. Create constants.py (task queues, SA names, demo constants)
+- [x] 3. Create python/justfile (default/check/fmt/test/all)
+- [x] 4. Create python/noxfile.py (tests + lint sessions)
+- [x] 5. `uv sync` and CONFIRM temporalio[pydantic]/fastapi/uvicorn/pydantic resolve on Python 3.14 (stop + report if not)
+- [x] 6. Add python/.gitignore; confirm `just check` and `just test` (empty) exit 0
 
 ## Step 2: Pydantic models (payloads + frozen responses)
 - [ ] 1. RED: tests/test_models.py (camelCase parse, defaults, extra ignore, by_alias serialization of response models)

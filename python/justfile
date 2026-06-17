@@ -1,0 +1,21 @@
+default:
+    @just --list
+
+check:
+    ruff check .
+    mypy .
+
+fmt:
+    ruff format .
+    ruff check --fix .
+
+# Run pytest. Exit code 5 (no tests collected) is treated as success so the
+# scaffold's empty suite passes; any real failure still propagates.
+test:
+    #!/usr/bin/env sh
+    pytest
+    code=$?
+    if [ "$code" -eq 5 ]; then exit 0; fi
+    exit "$code"
+
+all: fmt check test
