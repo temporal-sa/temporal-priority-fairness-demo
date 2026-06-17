@@ -31,3 +31,7 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### BPE working artifacts ###
+commit-msg.md
+goal.md
