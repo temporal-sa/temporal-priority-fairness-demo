@@ -25,10 +25,10 @@ run from `python/`.
 - [x] 4. Verify has_counts branch coverage; `just check` + `just test`
 
 ## Step 4: Domain — fairness submission order
-- [ ] 1. RED: extend test_fairness_rules.py (count expansion multiset, seeded shuffle order pinned, round-robin exact order)
-- [ ] 2. GREEN: build_submission_order with injected Random (counts -> expand + shuffle; else round-robin)
-- [ ] 3. REFACTOR: _expand_by_counts helper if clearer
-- [ ] 4. Verify both branches; `just check` + `just test`
+- [x] 1. RED: extend test_fairness_rules.py (count expansion multiset, seeded shuffle order pinned, round-robin exact order)
+- [x] 2. GREEN: build_submission_order with injected Random (counts -> expand + shuffle; else round-robin)
+- [x] 3. REFACTOR: _expand_by_counts helper if clearer
+- [x] 4. Verify both branches; `just check` + `just test`
 
 ## Step 5: Domain — start-delay math
 - [ ] 1. RED: tests/test_delay_math.py (priority offset, fairness offset floor/cap, start_delay negative clamp)
