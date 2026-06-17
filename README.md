@@ -2,7 +2,7 @@
 
 Have you ever wanted to control the priority of work in a Queue? Have you ever wished for fair processing instead of FIFO?
 
-Good news: Temporal has some new features in pre-release: Task Queue Priority and Task Queue Fairness. These features ensure balanced execution across tenants & users.
+Good news: Temporal has two features for exactly this: Task Queue Priority and Task Queue Fairness. Both went GA in Temporal Server 1.31. These features ensure balanced execution across tenants & users.
 
 This demo shows how to give priority to more important work, and how to prevent large tenants from blocking smaller ones - perfect for multi-tenant SaaS, payment processors, customer billing systems, and workloads like travel or ticketing.
 
@@ -24,21 +24,24 @@ The workflow summary shown below for a single workflow instance.
 ![Workflow-Summary.png](docs/Workflow-summary.png)
 
 # Pre-requisites
-Using the latest dev server (1.4 or higher, or from docker-compose repo 1.28.1 or higher) enable both the new matcher and fairness in Matching. Set the dynamic config values `matching.useNewMatcher` and `matching.enableFairness`.
+Use Temporal Server 1.31 or higher (CLI 1.4 or higher), where Priority and Fairness are GA. (The OSS server first shipped working fairness in 1.30.1; it is not present in 1.28.1.)
 
-If you run Temporal via the CLI dev server, start it with both flags, for example:
+- **Priority** needs no configuration. As of Server 1.31 the new matcher is enabled by default, so priority keys are respected out of the box.
+- **Fairness** must be turned on explicitly with the dynamic config value `matching.enableFairness`. Without it, fairness keys/weights are ignored and dispatch falls back to approximate FIFO.
+
+If you run Temporal via the CLI dev server, start it with the fairness flag, for example:
 ```
 temporal server start-dev \
-  --dynamic-config-value matching.useNewMatcher=true \
   --dynamic-config-value matching.enableFairness=true
+```
+
+The repo includes a helper that starts the dev server with this flag and creates the required search attributes for you:
+```
+$ ./startlocalserver.sh
 ```
 
 Assuming you are using the auto-setup [docker-compose](https://github.com/temporalio/docker-compose) config then add the following to your dynamicconfig
 ```
-matching.useNewMatcher:
-  - value: true
-    constraints:
-       namespace: default
 matching.enableFairness:
   - value: true
     constraints:
@@ -47,7 +50,7 @@ matching.enableFairness:
 
 If using Temporal Cloud, request enablement of priority/fairness on your namespace.
 
-Note: if priority/fairness are not enabled then approximate FIFO dispatch will apply and workflows will progress at roughly even speeds.
+Note: if fairness is not enabled then approximate FIFO dispatch will apply within a priority and workflows will progress at roughly even speeds.
 
 Required search attributes
 - `Priority` (int)
@@ -66,6 +69,7 @@ $ temporal --address localhost:7233 --namespace default operator search-attribut
 Or use the helper scripts in this repo:
 - Local/dev server: `./createlocalsearchattributes.sh`
   - Uses `temporal` CLI; defaults to `TEMPORAL_ADDRESS=localhost:7233`, `TEMPORAL_NAMESPACE=default`.
+  - Note: `./startlocalserver.sh` already runs this for you on startup. Since the dev server keeps state in memory, the attributes must be re-created each time it restarts, which the start script handles automatically.
   - You can override via env vars, for example:
     - `TEMPORAL_ADDRESS=localhost:7234 TEMPORAL_NAMESPACE=my-ns ./createlocalsearchattributes.sh`.
 - Temporal Cloud: `./createcloudsearchattributes.sh`
