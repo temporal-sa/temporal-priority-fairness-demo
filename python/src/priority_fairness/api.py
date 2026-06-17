@@ -107,9 +107,7 @@ async def _start_priority_workflows(client: Client, config: WorkflowConfig) -> N
         )
 
 
-async def _start_fairness_workflows(
-    client: Client, config: WorkflowConfig, rng: Random
-) -> None:
+async def _start_fairness_workflows(client: Client, config: WorkflowConfig, rng: Random) -> None:
     """Start fairness workflows on the fairness queue, one per submission-order slot.
 
     Bands come from the config or the defaults. The total is the sum of band counts when

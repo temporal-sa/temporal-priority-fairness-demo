@@ -23,9 +23,7 @@ async def test_priority_activity_appends_step_line_and_returns_data() -> None:
 
 async def test_fairness_activity_appends_step_line_and_returns_data() -> None:
     env = ActivityEnvironment()
-    data = FairnessActivityData(
-        step_number=4, fairness_key="economy-class", fairness_weight=1, results=[]
-    )
+    data = FairnessActivityData(step_number=4, fairness_key="economy-class", fairness_weight=1, results=[])
 
     result = await env.run(fairness_activity, data)
 

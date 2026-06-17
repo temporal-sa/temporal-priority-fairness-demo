@@ -100,7 +100,7 @@ run from `python/`.
 - [x] 4. Verify camelCase/shape/sort/required-param; `just check` + `just test`
 
 ## Step 16: Run scripts, README, and final verification
-- [ ] 1. Create python/scripts/startlocalworker.sh, startapi.sh, startcloudworker.sh (chmod +x)
-- [ ] 2. Create python/README.md (four-terminal local run, cloud path, frozen contract, 3.14 note)
-- [ ] 3. `just all` passes; ABOUTME headers, empty __init__.py, absolute imports confirmed
-- [ ] 4. Optional manual smoke against dev server (UI renders identically in both modes)
+- [x] 1. Create python/scripts/startlocalworker.sh, startapi.sh, startcloudworker.sh (chmod +x)
+- [x] 2. Create python/README.md (four-terminal local run, cloud path, frozen contract, 3.14 note)
+- [x] 3. `just all` passes; ABOUTME headers, empty __init__.py, absolute imports confirmed
+- [x] 4. Optional manual smoke against dev server (UI renders identically in both modes) — DEFERRED: manual step, requires a live dev server + the three running processes; not runnable in autonomous mode

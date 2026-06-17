@@ -330,9 +330,7 @@ def _priority_execution(priority: int, activities_completed: int) -> FakeExecuti
     )
 
 
-def _fairness_execution(
-    fairness_key: str, fairness_weight: int, activities_completed: int
-) -> FakeExecution:
+def _fairness_execution(fairness_key: str, fairness_weight: int, activities_completed: int) -> FakeExecution:
     """A fabricated fairness execution with the given key, weight, and step count."""
     return FakeExecution(
         TypedSearchAttributes(

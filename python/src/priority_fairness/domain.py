@@ -52,9 +52,7 @@ def _expand_by_counts(bands: list[Band]) -> list[Band]:
     return expanded
 
 
-def build_submission_order(
-    bands: list[Band], number_of_workflows: int, rng: Random
-) -> list[Band]:
+def build_submission_order(bands: list[Band], number_of_workflows: int, rng: Random) -> list[Band]:
     """Order in which to submit fairness workflows.
 
     When any band carries a positive count, expand each band by its count and shuffle the
@@ -117,16 +115,13 @@ def aggregate_priority(executions: list[ExecutionView]) -> PriorityTestRunResult
     group's workflow count and folds its completed activities into that group.
     """
     groups = [
-        WorkflowSummary(workflow_priority=priority, number_of_workflows=0)
-        for priority in range(1, PRIORITY_LEVELS + 1)
+        WorkflowSummary(workflow_priority=priority, number_of_workflows=0) for priority in range(1, PRIORITY_LEVELS + 1)
     ]
     for view in executions:
         group = groups[view.priority - 1]
         group.number_of_workflows += 1
         _accumulate_activities(group.activities, view.activities_completed)
-    return PriorityTestRunResults(
-        workflows_by_priority=groups, total_workflows_in_test=len(executions)
-    )
+    return PriorityTestRunResults(workflows_by_priority=groups, total_workflows_in_test=len(executions))
 
 
 @dataclass
@@ -158,9 +153,5 @@ def aggregate_fairness(executions: list[FairnessExecutionView]) -> FairnessTestR
             groups[identity] = group
         group.number_of_workflows += 1
         _accumulate_activities(group.activities, view.activities_completed)
-    sorted_groups = sorted(
-        groups.values(), key=lambda g: (-g.fairness_weight, g.fairness_key)
-    )
-    return FairnessTestRunResults(
-        workflows_by_fairness=sorted_groups, total_workflows_in_test=len(executions)
-    )
+    sorted_groups = sorted(groups.values(), key=lambda g: (-g.fairness_weight, g.fairness_key))
+    return FairnessTestRunResults(workflows_by_fairness=sorted_groups, total_workflows_in_test=len(executions))

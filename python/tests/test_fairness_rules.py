@@ -13,9 +13,7 @@ from priority_fairness.models import Band, WorkflowConfig
 
 
 def _config(number_of_workflows: int) -> WorkflowConfig:
-    return WorkflowConfig.model_validate(
-        {"workflowIdPrefix": "Run", "numberOfWorkflows": number_of_workflows}
-    )
+    return WorkflowConfig.model_validate({"workflowIdPrefix": "Run", "numberOfWorkflows": number_of_workflows})
 
 
 def test_default_fairness_bands_order_and_counts() -> None:

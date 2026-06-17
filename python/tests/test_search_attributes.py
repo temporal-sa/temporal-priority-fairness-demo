@@ -41,18 +41,14 @@ def test_parse_priority_view_reads_priority_and_completed() -> None:
 
 
 def test_parse_priority_view_defaults_completed_to_zero() -> None:
-    attrs = TypedSearchAttributes(
-        [SearchAttributePair(SearchAttributeKey.for_int(SA_PRIORITY), 4)]
-    )
+    attrs = TypedSearchAttributes([SearchAttributePair(SearchAttributeKey.for_int(SA_PRIORITY), 4)])
     assert parse_priority_view(attrs) == ExecutionView(priority=4, activities_completed=0)
 
 
 def test_parse_fairness_view_reads_key_weight_and_completed() -> None:
     attrs = TypedSearchAttributes(
         [
-            SearchAttributePair(
-                SearchAttributeKey.for_keyword(SA_FAIRNESS_KEY), "business-class"
-            ),
+            SearchAttributePair(SearchAttributeKey.for_keyword(SA_FAIRNESS_KEY), "business-class"),
             SearchAttributePair(SearchAttributeKey.for_int(SA_FAIRNESS_WEIGHT), 5),
             SearchAttributePair(SearchAttributeKey.for_int(SA_ACTIVITIES_COMPLETED), 4),
         ]
@@ -63,9 +59,7 @@ def test_parse_fairness_view_reads_key_weight_and_completed() -> None:
 
 
 def test_parse_fairness_view_defaults_missing_key_and_weight() -> None:
-    attrs = TypedSearchAttributes(
-        [SearchAttributePair(SearchAttributeKey.for_int(SA_ACTIVITIES_COMPLETED), 2)]
-    )
+    attrs = TypedSearchAttributes([SearchAttributePair(SearchAttributeKey.for_int(SA_ACTIVITIES_COMPLETED), 2)])
     assert parse_fairness_view(attrs) == FairnessExecutionView(
         fairness_key="", fairness_weight=0, activities_completed=2
     )

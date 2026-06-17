@@ -37,9 +37,7 @@ def build_priority_search_attributes(priority: int) -> TypedSearchAttributes:
     )
 
 
-def build_fairness_search_attributes(
-    fairness_key: str, fairness_weight: int
-) -> TypedSearchAttributes:
+def build_fairness_search_attributes(fairness_key: str, fairness_weight: int) -> TypedSearchAttributes:
     """Start-time attributes for a fairness workflow: key, weight, and a zero step count.
 
     The caller passes ``fairness_weight`` already zeroed when fairness is disabled.
