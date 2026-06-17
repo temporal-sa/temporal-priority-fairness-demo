@@ -11,7 +11,7 @@ delays. The fairness branch and GET endpoints arrive in later steps.
 """
 
 from collections import Counter
-from collections.abc import Iterator
+from collections.abc import AsyncIterator, Iterator
 from dataclasses import dataclass, field
 from datetime import timedelta
 from random import Random
@@ -19,6 +19,7 @@ from typing import Any
 
 import httpx
 import pytest
+from temporalio.common import SearchAttributePair, TypedSearchAttributes
 
 from priority_fairness import api
 from priority_fairness.constants import (
@@ -50,10 +51,23 @@ class StartCall:
 
 
 @dataclass
+class FakeExecution:
+    """A listed workflow execution exposing only its typed search attributes.
+
+    Mirrors the field the parsers read off temporalio.client.WorkflowExecution
+    (confirmed against temporalio 1.28.0: WorkflowExecution.typed_search_attributes).
+    """
+
+    typed_search_attributes: TypedSearchAttributes
+
+
+@dataclass
 class FakeClient:
-    """Records every start_workflow call without contacting a Temporal server."""
+    """Records start_workflow calls and serves fabricated list_workflows results."""
 
     calls: list[StartCall] = field(default_factory=list)
+    executions: list[FakeExecution] = field(default_factory=list)
+    list_queries: list[str | None] = field(default_factory=list)
 
     async def start_workflow(
         self,
@@ -77,6 +91,17 @@ class FakeClient:
                 start_delay=start_delay,
             )
         )
+
+    def list_workflows(self, query: str | None = None) -> AsyncIterator[FakeExecution]:
+        """Record the query and yield the fabricated executions as an async iterator."""
+        self.list_queries.append(query)
+        executions = list(self.executions)
+
+        async def _iter() -> AsyncIterator[FakeExecution]:
+            for execution in executions:
+                yield execution
+
+        return _iter()
 
 
 @pytest.fixture(autouse=True)
@@ -291,3 +316,115 @@ async def test_post_fairness_disable_fairness_zeroes_search_attribute_weight(
     for call in fake_client.calls:
         assert call.search_attributes.get(FAIRNESS_WEIGHT_KEY) == 0
         assert call.args[0].disable_fairness is True
+
+
+def _priority_execution(priority: int, activities_completed: int) -> FakeExecution:
+    """A fabricated priority execution with the given priority and step count."""
+    return FakeExecution(
+        TypedSearchAttributes(
+            [
+                SearchAttributePair(PRIORITY_KEY, priority),
+                SearchAttributePair(ACTIVITIES_COMPLETED_KEY, activities_completed),
+            ]
+        )
+    )
+
+
+def _fairness_execution(
+    fairness_key: str, fairness_weight: int, activities_completed: int
+) -> FakeExecution:
+    """A fabricated fairness execution with the given key, weight, and step count."""
+    return FakeExecution(
+        TypedSearchAttributes(
+            [
+                SearchAttributePair(FAIRNESS_KEY_KEY, fairness_key),
+                SearchAttributePair(FAIRNESS_WEIGHT_KEY, fairness_weight),
+                SearchAttributePair(ACTIVITIES_COMPLETED_KEY, activities_completed),
+            ]
+        )
+    )
+
+
+async def test_get_run_status_queries_by_prefix_and_returns_priority_groups(
+    fake_client: FakeClient,
+) -> None:
+    fake_client.executions = [
+        _priority_execution(priority=1, activities_completed=5),
+        _priority_execution(priority=1, activities_completed=2),
+        _priority_execution(priority=3, activities_completed=4),
+    ]
+
+    async with _http_client() as client:
+        response = await client.get("/run-status", params={"runPrefix": "Run"})
+
+    assert response.status_code == 200
+    assert fake_client.list_queries == ['WorkflowId STARTS_WITH "Run"']
+
+    body = response.json()
+    groups = body["workflowsByPriority"]
+    assert len(groups) == 5
+    assert body["totalWorkflowsInTest"] == 3
+    assert [group["workflowPriority"] for group in groups] == [1, 2, 3, 4, 5]
+
+    group_one = groups[0]
+    assert group_one["numberOfWorkflows"] == 2
+    # Steps 1..2 completed by both workflows; steps 3..5 only by the first.
+    assert [(a["activityNumber"], a["numberCompleted"]) for a in group_one["activities"]] == [
+        (1, 2),
+        (2, 2),
+        (3, 1),
+        (4, 1),
+        (5, 1),
+    ]
+
+    group_three = groups[2]
+    assert group_three["numberOfWorkflows"] == 1
+    assert [(a["activityNumber"], a["numberCompleted"]) for a in group_three["activities"]] == [
+        (1, 1),
+        (2, 1),
+        (3, 1),
+        (4, 1),
+    ]
+
+
+async def test_get_run_status_fairness_sorts_groups_by_weight_desc(
+    fake_client: FakeClient,
+) -> None:
+    fake_client.executions = [
+        _fairness_execution("economy-class", 1, activities_completed=2),
+        _fairness_execution("first-class", 15, activities_completed=5),
+        _fairness_execution("business-class", 5, activities_completed=3),
+    ]
+
+    async with _http_client() as client:
+        response = await client.get("/run-status-fairness", params={"runPrefix": "F"})
+
+    assert response.status_code == 200
+    assert fake_client.list_queries == ['WorkflowId STARTS_WITH "F"']
+
+    body = response.json()
+    groups = body["workflowsByFairness"]
+    assert body["totalWorkflowsInTest"] == 3
+    assert [group["fairnessWeight"] for group in groups] == [15, 5, 1]
+    assert [group["fairnessKey"] for group in groups] == [
+        "first-class",
+        "business-class",
+        "economy-class",
+    ]
+    assert all(group["numberOfWorkflows"] == 1 for group in groups)
+    assert len(groups[0]["activities"]) == 5
+    assert len(groups[2]["activities"]) == 2
+
+
+async def test_get_run_status_requires_run_prefix(fake_client: FakeClient) -> None:
+    async with _http_client() as client:
+        response = await client.get("/run-status")
+
+    assert response.status_code == 422
+
+
+async def test_get_run_status_fairness_requires_run_prefix(fake_client: FakeClient) -> None:
+    async with _http_client() as client:
+        response = await client.get("/run-status-fairness")
+
+    assert response.status_code == 422

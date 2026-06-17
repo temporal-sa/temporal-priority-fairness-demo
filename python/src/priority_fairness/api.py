@@ -9,8 +9,8 @@ from typing import Annotated
 
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import PlainTextResponse
-from temporalio.client import Client
+from fastapi.responses import JSONResponse, PlainTextResponse
+from temporalio.client import Client, WorkflowExecution
 
 from priority_fairness.config import connect_client
 from priority_fairness.constants import (
@@ -19,6 +19,8 @@ from priority_fairness.constants import (
     UI_ORIGIN,
 )
 from priority_fairness.domain import (
+    aggregate_fairness,
+    aggregate_priority,
     assign_priority,
     build_submission_order,
     default_fairness_bands,
@@ -35,6 +37,8 @@ from priority_fairness.models import (
 from priority_fairness.search_attributes import (
     build_fairness_search_attributes,
     build_priority_search_attributes,
+    parse_fairness_view,
+    parse_priority_view,
 )
 from priority_fairness.workflows import FairnessWorkflow, PriorityWorkflow
 
@@ -147,3 +151,33 @@ async def start_workflows(
     else:
         await _start_priority_workflows(client, config)
     return "Done"
+
+
+async def _list_executions(client: Client, run_prefix: str) -> list[WorkflowExecution]:
+    """List every workflow whose id starts with ``run_prefix`` for this run."""
+    query = f'WorkflowId STARTS_WITH "{run_prefix}"'
+    return [execution async for execution in client.list_workflows(query)]
+
+
+@app.get("/run-status")
+async def run_status(
+    runPrefix: str,  # noqa: N803 (camelCase query param matches the frozen UI contract)
+    client: Annotated[Client, Depends(get_client)],
+) -> JSONResponse:
+    """Aggregate the priority workflows for this run into the frozen 5-group shape."""
+    executions = await _list_executions(client, runPrefix)
+    views = [parse_priority_view(execution.typed_search_attributes) for execution in executions]
+    results = aggregate_priority(views)
+    return JSONResponse(results.model_dump(by_alias=True))
+
+
+@app.get("/run-status-fairness")
+async def run_status_fairness(
+    runPrefix: str,  # noqa: N803 (camelCase query param matches the frozen UI contract)
+    client: Annotated[Client, Depends(get_client)],
+) -> JSONResponse:
+    """Aggregate the fairness workflows for this run, sorted by weight descending."""
+    executions = await _list_executions(client, runPrefix)
+    views = [parse_fairness_view(execution.typed_search_attributes) for execution in executions]
+    results = aggregate_fairness(views)
+    return JSONResponse(results.model_dump(by_alias=True))

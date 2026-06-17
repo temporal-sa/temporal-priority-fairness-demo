@@ -94,10 +94,10 @@ run from `python/`.
 - [x] 4. Verify bands/counts/weights/disable_fairness; `just check` + `just test`
 
 ## Step 15: API — GET status endpoints
-- [ ] 1. RED: extend test_api.py (list_workflows query string; /run-status 5 groups + counts; /run-status-fairness sorted [15,5,1]; missing runPrefix -> 422)
-- [ ] 2. GREEN: GET /run-status + /run-status-fairness (list, parse views, aggregate, camelCase by_alias output; CONFIRM typed-SA accessor)
-- [ ] 3. REFACTOR: extract _list_executions helper
-- [ ] 4. Verify camelCase/shape/sort/required-param; `just check` + `just test`
+- [x] 1. RED: extend test_api.py (list_workflows query string; /run-status 5 groups + counts; /run-status-fairness sorted [15,5,1]; missing runPrefix -> 422)
+- [x] 2. GREEN: GET /run-status + /run-status-fairness (list, parse views, aggregate, camelCase by_alias output; CONFIRM typed-SA accessor)
+- [x] 3. REFACTOR: extract _list_executions helper
+- [x] 4. Verify camelCase/shape/sort/required-param; `just check` + `just test`
 
 ## Step 16: Run scripts, README, and final verification
 - [ ] 1. Create python/scripts/startlocalworker.sh, startapi.sh, startcloudworker.sh (chmod +x)
