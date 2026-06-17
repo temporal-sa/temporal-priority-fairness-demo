@@ -74,10 +74,10 @@ run from `python/`.
 - [x] 4. Verify converter attachment; `just check` + `just test`
 
 ## Step 12: Worker process
-- [ ] 1. RED: tests/test_worker.py (worker_specs: 3 queues; per-queue workflows/activities; max_concurrent_activities None/5/5)
-- [ ] 2. GREEN: worker.py WorkerSpec, worker_specs(), build_workers(client), async main() + asyncio.gather + __main__
-- [ ] 3. REFACTOR: constants as single source for queue names
-- [ ] 4. Verify spec assertions; `just check` + `just test`
+- [x] 1. RED: tests/test_worker.py (worker_specs: 3 queues; per-queue workflows/activities; max_concurrent_activities None/5/5)
+- [x] 2. GREEN: worker.py WorkerSpec, worker_specs(), build_workers(client), async main() + asyncio.gather + __main__
+- [x] 3. REFACTOR: constants as single source for queue names
+- [x] 4. Verify spec assertions; `just check` + `just test`
 
 ## Step 13: API — app, client injection, POST priority mode
 - [ ] 1. RED: tests/test_api.py (FakeClient recording start_workflow; POST priority -> "Done", 3 calls, ids, cycling priorities, SAs, monotonic delays; autouse state reset)
