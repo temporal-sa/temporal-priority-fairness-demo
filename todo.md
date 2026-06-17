@@ -12,11 +12,11 @@ run from `python/`.
 - [x] 6. Add python/.gitignore; confirm `just check` and `just test` (empty) exit 0
 
 ## Step 2: Pydantic models (payloads + frozen responses)
-- [ ] 1. RED: tests/test_models.py (camelCase parse, defaults, extra ignore, by_alias serialization of response models)
-- [ ] 2. Document wire-contract intent in models.py header
-- [ ] 3. GREEN: models.py (Band, WorkflowConfig, *WorkflowData, *ActivityData, response models with aliases)
-- [ ] 4. REFACTOR: shared model_config base if it helps
-- [ ] 5. Verify alias/default/extra coverage; `just check` + `just test`
+- [x] 1. RED: tests/test_models.py (camelCase parse, defaults, extra ignore, by_alias serialization of response models)
+- [x] 2. Document wire-contract intent in models.py header
+- [x] 3. GREEN: models.py (Band, WorkflowConfig, *WorkflowData, *ActivityData, response models with aliases)
+- [x] 4. REFACTOR: shared model_config base if it helps
+- [x] 5. Verify alias/default/extra coverage; `just check` + `just test`
 
 ## Step 3: Domain — priority assignment and band helpers
 - [ ] 1. RED: tests/test_priority_rules.py (assign_priority) + tests/test_fairness_rules.py (default bands, resolve_total_workflows, count==0 vs None)
