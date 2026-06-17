@@ -43,10 +43,10 @@ run from `python/`.
 - [x] 4. Verify empty/single/accumulation; `just check` + `just test`
 
 ## Step 7: Domain — fairness aggregation
-- [ ] 1. RED: extend test_aggregation.py (weight-desc sort, grouping collapse, weight-0 last, key tie-break, missing key/weight, activity accumulation)
-- [ ] 2. GREEN: FairnessExecutionView dataclass + aggregate_fairness (group by (key,weight), sort -weight then key)
-- [ ] 3. REFACTOR: confirm _accumulate_activities reused, not duplicated
-- [ ] 4. Verify sort/grouping/tie-break; `just check` + `just test`
+- [x] 1. RED: extend test_aggregation.py (weight-desc sort, grouping collapse, weight-0 last, key tie-break, missing key/weight, activity accumulation)
+- [x] 2. GREEN: FairnessExecutionView dataclass + aggregate_fairness (group by (key,weight), sort -weight then key)
+- [x] 3. REFACTOR: confirm _accumulate_activities reused, not duplicated
+- [x] 4. Verify sort/grouping/tie-break; `just check` + `just test`
 
 ## Step 8: Search attributes — keys, start builders, view parsers
 - [ ] 1. RED: tests/test_search_attributes.py (parse_priority_view + defaulting; parse_fairness_view + defaulting "" / 0)

@@ -10,6 +10,8 @@ from priority_fairness.constants import PRIORITY_LEVELS
 from priority_fairness.models import (
     ActivitySummary,
     Band,
+    FairnessSummary,
+    FairnessTestRunResults,
     PriorityTestRunResults,
     WorkflowConfig,
     WorkflowSummary,
@@ -124,4 +126,41 @@ def aggregate_priority(executions: list[ExecutionView]) -> PriorityTestRunResult
         _accumulate_activities(group.activities, view.activities_completed)
     return PriorityTestRunResults(
         workflows_by_priority=groups, total_workflows_in_test=len(executions)
+    )
+
+
+@dataclass
+class FairnessExecutionView:
+    """A parsed fairness workflow: its fairness key, weight, and completed activity count."""
+
+    fairness_key: str
+    fairness_weight: int
+    activities_completed: int
+
+
+def aggregate_fairness(executions: list[FairnessExecutionView]) -> FairnessTestRunResults:
+    """Aggregate fairness views into groups keyed by (fairness_key, fairness_weight).
+
+    Views sharing a key and weight collapse into one group whose activity tallies fold
+    together. Groups sort by weight descending then key ascending, so a disabled-fairness
+    weight-0 group sorts last and equal-weight groups order alphabetically by key.
+    """
+    groups: dict[tuple[str, int], FairnessSummary] = {}
+    for view in executions:
+        identity = (view.fairness_key, view.fairness_weight)
+        group = groups.get(identity)
+        if group is None:
+            group = FairnessSummary(
+                fairness_key=view.fairness_key,
+                fairness_weight=view.fairness_weight,
+                number_of_workflows=0,
+            )
+            groups[identity] = group
+        group.number_of_workflows += 1
+        _accumulate_activities(group.activities, view.activities_completed)
+    sorted_groups = sorted(
+        groups.values(), key=lambda g: (-g.fairness_weight, g.fairness_key)
+    )
+    return FairnessTestRunResults(
+        workflows_by_fairness=sorted_groups, total_workflows_in_test=len(executions)
     )
