@@ -37,10 +37,10 @@ run from `python/`.
 - [x] 4. Verify edge coverage; `just check` + `just test`
 
 ## Step 6: Domain — priority aggregation
-- [ ] 1. RED: tests/test_aggregation.py (empty -> 5 groups/total 0; single priority-3/4-acts; accumulation; total count)
-- [ ] 2. GREEN: ExecutionView dataclass + aggregate_priority
-- [ ] 3. REFACTOR: extract shared _accumulate_activities helper
-- [ ] 4. Verify empty/single/accumulation; `just check` + `just test`
+- [x] 1. RED: tests/test_aggregation.py (empty -> 5 groups/total 0; single priority-3/4-acts; accumulation; total count)
+- [x] 2. GREEN: ExecutionView dataclass + aggregate_priority
+- [x] 3. REFACTOR: extract shared _accumulate_activities helper
+- [x] 4. Verify empty/single/accumulation; `just check` + `just test`
 
 ## Step 7: Domain — fairness aggregation
 - [ ] 1. RED: extend test_aggregation.py (weight-desc sort, grouping collapse, weight-0 last, key tie-break, missing key/weight, activity accumulation)

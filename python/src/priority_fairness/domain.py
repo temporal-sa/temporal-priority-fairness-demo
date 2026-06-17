@@ -1,12 +1,19 @@
 # ABOUTME: Pure domain logic for the priority/fairness demo: priority assignment and
 # ABOUTME: fairness band helpers. No Temporal, no I/O, no clock. The API supplies side effects.
 
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from math import ceil
 from random import Random
 
 from priority_fairness.constants import PRIORITY_LEVELS
-from priority_fairness.models import Band, WorkflowConfig
+from priority_fairness.models import (
+    ActivitySummary,
+    Band,
+    PriorityTestRunResults,
+    WorkflowConfig,
+    WorkflowSummary,
+)
 
 
 def assign_priority(workflow_num: int) -> int:
@@ -78,3 +85,43 @@ def start_delay(target: datetime, now: datetime) -> timedelta:
     """Delay until ``target``, or zero when ``target`` is already in the past."""
     delta = target - now
     return delta if delta > timedelta(0) else timedelta(0)
+
+
+@dataclass
+class ExecutionView:
+    """A parsed priority workflow: its priority band and how many activities it completed."""
+
+    priority: int
+    activities_completed: int
+
+
+def _accumulate_activities(activities: list[ActivitySummary], completed: int) -> None:
+    """Fold one workflow's completed-activity count into a group's activity tallies.
+
+    For each step 1..``completed``, increment the matching ``ActivitySummary`` count,
+    appending a new step entry the first time that step is seen. Mutates ``activities``.
+    """
+    for step in range(1, completed + 1):
+        if step <= len(activities):
+            activities[step - 1].number_completed += 1
+        else:
+            activities.append(ActivitySummary(activity_number=step, number_completed=1))
+
+
+def aggregate_priority(executions: list[ExecutionView]) -> PriorityTestRunResults:
+    """Aggregate priority views into the frozen 5-group results shape.
+
+    Always returns exactly five groups for priorities 1..5. Each view increments its
+    group's workflow count and folds its completed activities into that group.
+    """
+    groups = [
+        WorkflowSummary(workflow_priority=priority, number_of_workflows=0)
+        for priority in range(1, PRIORITY_LEVELS + 1)
+    ]
+    for view in executions:
+        group = groups[view.priority - 1]
+        group.number_of_workflows += 1
+        _accumulate_activities(group.activities, view.activities_completed)
+    return PriorityTestRunResults(
+        workflows_by_priority=groups, total_workflows_in_test=len(executions)
+    )
