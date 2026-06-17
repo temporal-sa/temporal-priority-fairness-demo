@@ -31,10 +31,10 @@ run from `python/`.
 - [x] 4. Verify both branches; `just check` + `just test`
 
 ## Step 5: Domain — start-delay math
-- [ ] 1. RED: tests/test_delay_math.py (priority offset, fairness offset floor/cap, start_delay negative clamp)
-- [ ] 2. GREEN: priority_target_offset_seconds, fairness_target_offset_seconds, start_delay
-- [ ] 3. REFACTOR: clamp bounds via constants if cleaner
-- [ ] 4. Verify edge coverage; `just check` + `just test`
+- [x] 1. RED: tests/test_delay_math.py (priority offset, fairness offset floor/cap, start_delay negative clamp)
+- [x] 2. GREEN: priority_target_offset_seconds, fairness_target_offset_seconds, start_delay
+- [x] 3. REFACTOR: clamp bounds via constants if cleaner
+- [x] 4. Verify edge coverage; `just check` + `just test`
 
 ## Step 6: Domain — priority aggregation
 - [ ] 1. RED: tests/test_aggregation.py (empty -> 5 groups/total 0; single priority-3/4-acts; accumulation; total count)

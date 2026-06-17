@@ -1,6 +1,8 @@
 # ABOUTME: Pure domain logic for the priority/fairness demo: priority assignment and
 # ABOUTME: fairness band helpers. No Temporal, no I/O, no clock. The API supplies side effects.
 
+from datetime import datetime, timedelta
+from math import ceil
 from random import Random
 
 from priority_fairness.constants import PRIORITY_LEVELS
@@ -55,3 +57,24 @@ def build_submission_order(
         rng.shuffle(order)
         return order
     return [bands[(n - 1) % len(bands)] for n in range(1, number_of_workflows + 1)]
+
+
+# Clamp bounds (seconds) for the fairness target offset.
+_FAIRNESS_OFFSET_FLOOR = 7
+_FAIRNESS_OFFSET_CAP = 30
+
+
+def priority_target_offset_seconds(number_of_workflows: int) -> float:
+    """Seconds from now to the shared priority target: more workflows means a later target."""
+    return number_of_workflows * 0.05 + 5
+
+
+def fairness_target_offset_seconds(number_of_workflows: int) -> int:
+    """Seconds from now to the shared fairness target, clamped to [7, 30]."""
+    return max(_FAIRNESS_OFFSET_FLOOR, min(_FAIRNESS_OFFSET_CAP, ceil(0.15 * number_of_workflows - 15)))
+
+
+def start_delay(target: datetime, now: datetime) -> timedelta:
+    """Delay until ``target``, or zero when ``target`` is already in the past."""
+    delta = target - now
+    return delta if delta > timedelta(0) else timedelta(0)
