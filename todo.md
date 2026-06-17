@@ -56,10 +56,10 @@ run from `python/`.
 - [x] 5. Verify defaulting branches; `just check` + `just test`
 
 ## Step 9: Activities
-- [ ] 1. RED: tests/test_activities.py (ActivityEnvironment; result line appended w/ "Activity step [N] completed"; input returned)
-- [ ] 2. GREEN: activities.py priority_activity + fairness_activity (async sleep, append line, return)
-- [ ] 3. REFACTOR: shared append-line helper if clean
-- [ ] 4. Verify append/return; `just check` + `just test`
+- [x] 1. RED: tests/test_activities.py (ActivityEnvironment; result line appended w/ "Activity step [N] completed"; input returned)
+- [x] 2. GREEN: activities.py priority_activity + fairness_activity (async sleep, append line, return)
+- [x] 3. REFACTOR: shared append-line helper if clean
+- [x] 4. Verify append/return; `just check` + `just test`
 
 ## Step 10: Workflows
 - [ ] 1. RED: tests/test_workflows.py (time-skipping env + recording mock activity; 5 calls, ActivitiesCompleted=5, "Complete", priority/fairness priority set/omitted)
