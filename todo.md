@@ -19,10 +19,10 @@ run from `python/`.
 - [x] 5. Verify alias/default/extra coverage; `just check` + `just test`
 
 ## Step 3: Domain — priority assignment and band helpers
-- [ ] 1. RED: tests/test_priority_rules.py (assign_priority) + tests/test_fairness_rules.py (default bands, resolve_total_workflows, count==0 vs None)
-- [ ] 2. GREEN: domain.py assign_priority, default_fairness_bands, _has_counts, resolve_total_workflows
-- [ ] 3. REFACTOR: reference constants; one-purpose functions
-- [ ] 4. Verify has_counts branch coverage; `just check` + `just test`
+- [x] 1. RED: tests/test_priority_rules.py (assign_priority) + tests/test_fairness_rules.py (default bands, resolve_total_workflows, count==0 vs None)
+- [x] 2. GREEN: domain.py assign_priority, default_fairness_bands, _has_counts, resolve_total_workflows
+- [x] 3. REFACTOR: reference constants; one-purpose functions
+- [x] 4. Verify has_counts branch coverage; `just check` + `just test`
 
 ## Step 4: Domain — fairness submission order
 - [ ] 1. RED: extend test_fairness_rules.py (count expansion multiset, seeded shuffle order pinned, round-robin exact order)
