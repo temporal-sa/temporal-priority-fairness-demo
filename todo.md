@@ -88,10 +88,10 @@ run from `python/`.
 - [x] 6. Verify id/queue/priority/SA/delay mapping; `just check` + `just test`
 
 ## Step 14: API — POST fairness mode
-- [ ] 1. RED: extend test_api.py (default-band round-robin 6; SAs incl. weight; explicit counts multiset; disable_fairness weight 0; injected seeded RNG)
-- [ ] 2. GREEN: fairness branch (bands or defaults, resolve total, build order, target, weight zeroing, build_fairness_search_attributes) + get_rng dependency
-- [ ] 3. REFACTOR: extract _start_fairness_workflows; route dispatches by mode
-- [ ] 4. Verify bands/counts/weights/disable_fairness; `just check` + `just test`
+- [x] 1. RED: extend test_api.py (default-band round-robin 6; SAs incl. weight; explicit counts multiset; disable_fairness weight 0; injected seeded RNG)
+- [x] 2. GREEN: fairness branch (bands or defaults, resolve total, build order, target, weight zeroing, build_fairness_search_attributes) + get_rng dependency
+- [x] 3. REFACTOR: extract _start_fairness_workflows; route dispatches by mode
+- [x] 4. Verify bands/counts/weights/disable_fairness; `just check` + `just test`
 
 ## Step 15: API — GET status endpoints
 - [ ] 1. RED: extend test_api.py (list_workflows query string; /run-status 5 groups + counts; /run-status-fairness sorted [15,5,1]; missing runPrefix -> 422)

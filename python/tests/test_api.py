@@ -10,9 +10,11 @@ priorities, the start-time search attributes, and the monotonic non-increasing s
 delays. The fairness branch and GET endpoints arrive in later steps.
 """
 
+from collections import Counter
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from datetime import timedelta
+from random import Random
 from typing import Any
 
 import httpx
@@ -20,13 +22,16 @@ import pytest
 
 from priority_fairness import api
 from priority_fairness.constants import (
+    FAIRNESS_TASK_QUEUE,
     PRIORITY_WORKFLOW_TASK_QUEUE,
     SA_ACTIVITIES_COMPLETED,
     SA_PRIORITY,
 )
-from priority_fairness.domain import assign_priority
+from priority_fairness.domain import assign_priority, default_fairness_bands
 from priority_fairness.search_attributes import (
     ACTIVITIES_COMPLETED_KEY,
+    FAIRNESS_KEY_KEY,
+    FAIRNESS_WEIGHT_KEY,
     PRIORITY_KEY,
 )
 
@@ -192,3 +197,97 @@ async def test_post_priority_treats_blank_and_unknown_mode_as_priority(
 
     assert len(fake_client.calls) == 2
     assert all(call.task_queue == PRIORITY_WORKFLOW_TASK_QUEUE for call in fake_client.calls)
+
+
+@pytest.fixture
+def seeded_rng() -> Random:
+    """Inject a seeded RNG so fairness submission order is deterministic in tests."""
+    rng = Random(0)
+    api.app.dependency_overrides[api.get_rng] = lambda: rng
+    return rng
+
+
+async def test_post_fairness_round_robins_default_bands_on_fairness_queue(
+    fake_client: FakeClient, seeded_rng: Random
+) -> None:
+    async with _http_client() as client:
+        response = await client.post(
+            "/start-workflows",
+            json={"workflowIdPrefix": "F", "mode": "fairness", "numberOfWorkflows": 6},
+        )
+
+    assert response.status_code == 200
+    assert response.text == "Done"
+    assert len(fake_client.calls) == 6
+    assert [call.id for call in fake_client.calls] == [f"F-{n}" for n in range(1, 7)]
+    assert all(call.task_queue == FAIRNESS_TASK_QUEUE for call in fake_client.calls)
+
+    bands = default_fairness_bands()
+    expected_keys = [bands[(n - 1) % len(bands)].key for n in range(1, 7)]
+    assert [call.args[0].fairness_key for call in fake_client.calls] == expected_keys
+
+
+async def test_post_fairness_sets_search_attributes_with_band_weight(
+    fake_client: FakeClient, seeded_rng: Random
+) -> None:
+    async with _http_client() as client:
+        await client.post(
+            "/start-workflows",
+            json={"workflowIdPrefix": "F", "mode": "fairness", "numberOfWorkflows": 6},
+        )
+
+    bands = default_fairness_bands()
+    by_key = {band.key: band.weight for band in bands}
+    for call in fake_client.calls:
+        attrs = call.search_attributes
+        key = attrs.get(FAIRNESS_KEY_KEY)
+        assert key in by_key
+        assert attrs.get(FAIRNESS_WEIGHT_KEY) == by_key[key]
+        assert attrs.get(ACTIVITIES_COMPLETED_KEY) == 0
+        # The workflow payload carries the band's true weight.
+        assert call.args[0].fairness_weight == by_key[key]
+        assert call.args[0].disable_fairness is False
+
+
+async def test_post_fairness_explicit_counts_start_count_sum_multiset(
+    fake_client: FakeClient, seeded_rng: Random
+) -> None:
+    async with _http_client() as client:
+        await client.post(
+            "/start-workflows",
+            json={
+                "workflowIdPrefix": "F",
+                "mode": "fairness",
+                "numberOfWorkflows": 6,
+                "bands": [
+                    {"key": "a", "weight": 2, "count": 2},
+                    {"key": "b", "weight": 1, "count": 3},
+                ],
+            },
+        )
+
+    # Count sum (5) overrides numberOfWorkflows (6).
+    assert len(fake_client.calls) == 5
+    assert [call.id for call in fake_client.calls] == [f"F-{n}" for n in range(1, 6)]
+    key_counts = Counter(call.args[0].fairness_key for call in fake_client.calls)
+    assert key_counts == Counter({"a": 2, "b": 3})
+
+
+async def test_post_fairness_disable_fairness_zeroes_search_attribute_weight(
+    fake_client: FakeClient, seeded_rng: Random
+) -> None:
+    async with _http_client() as client:
+        await client.post(
+            "/start-workflows",
+            json={
+                "workflowIdPrefix": "F",
+                "mode": "fairness",
+                "numberOfWorkflows": 3,
+                "disableFairness": True,
+            },
+        )
+
+    assert len(fake_client.calls) == 3
+    for call in fake_client.calls:
+        assert call.search_attributes.get(FAIRNESS_WEIGHT_KEY) == 0
+        assert call.args[0].disable_fairness is True

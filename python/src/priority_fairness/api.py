@@ -4,6 +4,7 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
+from random import Random
 from typing import Annotated
 
 from fastapi import Depends, FastAPI
@@ -13,17 +14,29 @@ from temporalio.client import Client
 
 from priority_fairness.config import connect_client
 from priority_fairness.constants import (
+    FAIRNESS_TASK_QUEUE,
     PRIORITY_WORKFLOW_TASK_QUEUE,
     UI_ORIGIN,
 )
 from priority_fairness.domain import (
     assign_priority,
+    build_submission_order,
+    default_fairness_bands,
+    fairness_target_offset_seconds,
     priority_target_offset_seconds,
+    resolve_total_workflows,
     start_delay,
 )
-from priority_fairness.models import PriorityWorkflowData, WorkflowConfig
-from priority_fairness.search_attributes import build_priority_search_attributes
-from priority_fairness.workflows import PriorityWorkflow
+from priority_fairness.models import (
+    FairnessWorkflowData,
+    PriorityWorkflowData,
+    WorkflowConfig,
+)
+from priority_fairness.search_attributes import (
+    build_fairness_search_attributes,
+    build_priority_search_attributes,
+)
+from priority_fairness.workflows import FairnessWorkflow, PriorityWorkflow
 
 
 @asynccontextmanager
@@ -51,6 +64,11 @@ def get_client() -> Client:
     if client is None:
         raise RuntimeError("Temporal client is not connected")
     return client
+
+
+def get_rng() -> Random:
+    """Return the RNG used to shuffle fairness submission order; tests override this."""
+    return Random()
 
 
 def _normalize_mode(mode: str | None) -> str:
@@ -85,13 +103,47 @@ async def _start_priority_workflows(client: Client, config: WorkflowConfig) -> N
         )
 
 
+async def _start_fairness_workflows(
+    client: Client, config: WorkflowConfig, rng: Random
+) -> None:
+    """Start fairness workflows on the fairness queue, one per submission-order slot.
+
+    Bands come from the config or the defaults. The total is the sum of band counts when
+    any are set, else the config value. The submission order is shuffled by ``rng`` (or
+    round-robined when no counts are set) so tests stay deterministic. When fairness is
+    disabled, every search-attribute weight is zeroed while the workflow payload keeps the
+    band's true weight.
+    """
+    bands = config.bands or default_fairness_bands()
+    total = resolve_total_workflows(config, bands)
+    order = build_submission_order(bands, total, rng)
+    target = datetime.now() + timedelta(seconds=fairness_target_offset_seconds(total))
+    for index, band in enumerate(order, start=1):
+        weight = 0 if config.disable_fairness else band.weight
+        await client.start_workflow(
+            FairnessWorkflow.run,
+            FairnessWorkflowData(
+                fairness_key=band.key,
+                fairness_weight=band.weight,
+                disable_fairness=config.disable_fairness,
+            ),
+            id=f"{config.workflow_id_prefix}-{index}",
+            task_queue=FAIRNESS_TASK_QUEUE,
+            search_attributes=build_fairness_search_attributes(band.key, weight),
+            start_delay=start_delay(target, datetime.now()),
+        )
+
+
 @app.post("/start-workflows", response_class=PlainTextResponse)
 async def start_workflows(
     config: WorkflowConfig,
     client: Annotated[Client, Depends(get_client)],
+    rng: Annotated[Random, Depends(get_rng)],
 ) -> str:
-    """Start a batch of demo workflows. Only priority mode is wired in this step."""
+    """Start a batch of demo workflows, dispatching by mode (priority or fairness)."""
     mode = _normalize_mode(config.mode)
-    if mode == "priority":
+    if mode == "fairness":
+        await _start_fairness_workflows(client, config, rng)
+    else:
         await _start_priority_workflows(client, config)
     return "Done"
