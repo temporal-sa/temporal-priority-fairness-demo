@@ -80,12 +80,12 @@ run from `python/`.
 - [x] 4. Verify spec assertions; `just check` + `just test`
 
 ## Step 13: API — app, client injection, POST priority mode
-- [ ] 1. RED: tests/test_api.py (FakeClient recording start_workflow; POST priority -> "Done", 3 calls, ids, cycling priorities, SAs, monotonic delays; autouse state reset)
-- [ ] 2. GREEN: api.py app + lifespan client + get_client dependency + CORS + POST priority branch (PlainTextResponse "Done")
-- [ ] 3. RED: default-config integration check (small-N default applied)
-- [ ] 4. GREEN: wire priority branch fully
-- [ ] 5. REFACTOR: extract _start_priority_workflows
-- [ ] 6. Verify id/queue/priority/SA/delay mapping; `just check` + `just test`
+- [x] 1. RED: tests/test_api.py (FakeClient recording start_workflow; POST priority -> "Done", 3 calls, ids, cycling priorities, SAs, monotonic delays; autouse state reset)
+- [x] 2. GREEN: api.py app + lifespan client + get_client dependency + CORS + POST priority branch (PlainTextResponse "Done")
+- [x] 3. RED: default-config integration check (small-N default applied)
+- [x] 4. GREEN: wire priority branch fully
+- [x] 5. REFACTOR: extract _start_priority_workflows
+- [x] 6. Verify id/queue/priority/SA/delay mapping; `just check` + `just test`
 
 ## Step 14: API — POST fairness mode
 - [ ] 1. RED: extend test_api.py (default-band round-robin 6; SAs incl. weight; explicit counts multiset; disable_fairness weight 0; injected seeded RNG)
