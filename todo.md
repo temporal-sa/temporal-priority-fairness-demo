@@ -68,10 +68,10 @@ run from `python/`.
 - [x] 4. Verify orchestration assertions; `just check` + `just test`
 
 ## Step 11: Connection config (envconfig + Pydantic converter)
-- [ ] 1. RED: tests/test_config.py (build_connect_config attaches pydantic_data_converter; injected/patched loader)
-- [ ] 2. GREEN: config.py build_connect_config + connect_client (envconfig + converter; profile from TEMPORAL_PROFILE)
-- [ ] 3. REFACTOR: injectable loader shared by worker + API
-- [ ] 4. Verify converter attachment; `just check` + `just test`
+- [x] 1. RED: tests/test_config.py (build_connect_config attaches pydantic_data_converter; injected/patched loader)
+- [x] 2. GREEN: config.py build_connect_config + connect_client (envconfig + converter; profile from TEMPORAL_PROFILE)
+- [x] 3. REFACTOR: injectable loader shared by worker + API
+- [x] 4. Verify converter attachment; `just check` + `just test`
 
 ## Step 12: Worker process
 - [ ] 1. RED: tests/test_worker.py (worker_specs: 3 queues; per-queue workflows/activities; max_concurrent_activities None/5/5)
